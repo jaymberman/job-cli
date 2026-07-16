@@ -1,0 +1,4 @@
+data/applications.json
+*pycache*
+.claude/skills/
+.claude/settings.local.json
