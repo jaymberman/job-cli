@@ -5,7 +5,16 @@
 [![Platform: Linux | macOS](https://img.shields.io/badge/platform-linux%20%7C%20macos-lightgrey.svg)](#requirements)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](requirements.txt)
 
-A fast, zero-dependency command-line tool for tracking the jobs you've applied to — company, title, dates, status, and interviews — without resorting to a spreadsheet.
+🚀🚀🚀 A fast, zero-dependency command-line tool for tracking the jobs you've applied to — company, title, dates, status — and scheduling interviews — without resorting to a spreadsheet.
+
+<div align="center">
+  <kbd>
+    <i>"Ugh, I have so many applications and interviews to track, but I'm not a phone calendar guy!"</i>
+    <br>
+    <i>- The guy who made this cli</i>
+    <br><br>
+  </kbd>
+</div>
 
 ```
 $ job "Big Corp" "Data Engineer"
@@ -14,12 +23,35 @@ Created record for Big Corp.
 $ job "big corp"
 Company        Title           Applied      Interview  Status Changed  Status
 Big Corp       Data Engineer   2026-07-16   —          2026-07-16      sent app
+
+$ job "big corp" "Product Manager - Data"
+Big Corp already has a record
+
+$ job list
+Company        Title           Applied      Interview             Status Changed  Status
+Big Corp       Data Engineer   2026-07-16   —                     2026-07-16      sent app
+Big Corp5      Data Engineer   2026-07-16   —                     2026-07-16      sent app
+Big Corp6      Data Engineer   2026-07-16   —                     2026-07-16      sent app
+Big Corp7      Data Engineer   2026-07-16   —                     2026-07-16      sent app
+Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever
+Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status
+Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want
+
+$ job "big corp" interview 7/20 9am ET
+
+$ job interviews
+Company        Title           Applied      Interview             Status Changed  Status
+Big Corp       Data Engineer   2026-07-16   2026-07-20 09:00 ET   2026-07-16      sent app
+Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever
+Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status
+Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want
+
 ```
 
 ## Features
 
 - **One record per company, forever** — create, look up, and update with a single short command from any shell prompt.
-- **Typo-tolerant** — company names are matched case-insensitively and fuzzily (`aretum`, `aretumconsulting`, and `aretum consulzing` all resolve to "Aretum Consulting"), with a confirmation prompt whenever a match is uncertain.
+- **Typo-tolerant** — company names are matched case-insensitively and fuzzily (`BigCorp`, `BigCorpconsulting`, and `BigCorp consulzing` all resolve to "BigCorp Consulting"), with a confirmation prompt whenever a match is uncertain.
 - **Soft delete by default** — deleting a record hides it from everyday views but keeps its history, so reapplying to a company you were once declined by doesn't erase the past. `delete --hard` is there when you really want something gone.
 - **Freeform status** — status is just text. No enum to fight with.
 - **Interview scheduling with real timezone handling** — type interview times in whatever shorthand you'd naturally use (`2026-07-13 13:00 CT`, `1/1/2027 9pm ET`, `7/13 3pm`); ambiguous hours are always confirmed, never guessed.
@@ -62,6 +94,18 @@ There's nothing to `pip install` today — `job.py` is pure standard library —
 ```bash
 python3 job.py <args>
 ```
+
+### Running tests
+
+The test suite (pytest) and coverage tooling are dev-only dependencies, kept out of `requirements.txt` so that file stays an accurate zero-dependency signal for the shipped tool:
+
+```bash
+pip install -r requirements-dev.txt
+coverage run -m pytest
+coverage report -m
+```
+
+`.coveragerc` enforces a 90% branch-coverage gate (`coverage report` exits non-zero below it). Tests never touch your real `data/applications.json` — every test runs against an isolated scratch data file. The one deliberate gap is the raw-mode interactive scroll widget (`scroll_table_interactive`, used for tables wider than your terminal), which is excluded from coverage and verified manually, since faking a live terminal in a test runner isn't practical.
 
 ## Usage
 

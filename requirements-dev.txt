@@ -1,0 +1,4 @@
+# Dev-only dependencies for running the test suite.
+# job.py itself has zero dependencies -- see requirements.txt.
+pytest>=7.0
+coverage>=7.0

@@ -756,7 +756,7 @@ def read_key(fd):
     return b"\x1b[" + os.read(fd, 1)
 
 
-def scroll_table_interactive(lines, column_starts, total_width, term_width, term_height, row_colors):
+def scroll_table_interactive(lines, column_starts, total_width, term_width, term_height, row_colors):  # pragma: no cover
     """Inline, independently-2D-scrollable table view, rendered on the
     terminal's alternate screen buffer (restored to whatever was on screen
     before on exit, like a pager) — this is what keeps every redraw correct
