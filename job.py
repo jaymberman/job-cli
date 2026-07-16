@@ -15,8 +15,20 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(SCRIPT_DIR, "data")
-DATA_FILE = os.path.join(DATA_DIR, "applications.json")
+_LEGACY_DATA_DIR = os.path.join(SCRIPT_DIR, "data")
+_LEGACY_DATA_FILE = os.path.join(_LEGACY_DATA_DIR, "applications.json")
+_XDG_DATA_DIR = os.path.join(
+    os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share"),
+    "job-cli",
+)
+
+if os.path.exists(_LEGACY_DATA_FILE):
+    # Pre-existing checkouts keep using their in-repo data file untouched.
+    DATA_DIR = _LEGACY_DATA_DIR
+    DATA_FILE = _LEGACY_DATA_FILE
+else:
+    DATA_DIR = _XDG_DATA_DIR
+    DATA_FILE = os.path.join(DATA_DIR, "applications.json")
 
 # Documentation-only: illustrative, not enforced via membership checks anywhere.
 RESERVED = {"list", "status", "delete", "search", "sort", "help", "interview", "interviews", "today", "tz"}

@@ -139,7 +139,9 @@ Company names, titles, and statuses are each passed as a single shell argument �
 
 ## Your data
 
-Application records live in `data/applications.json` inside this checkout, in plain JSON. That file is listed in `.gitignore` — it's never committed, so cloning or forking this repo never exposes what you're tracking, and nothing is ever sent anywhere else.
+Application records live in `~/.local/share/job-cli/applications.json` (or `$XDG_DATA_HOME/job-cli/applications.json` if you've set that), in plain JSON. This is a fixed per-user location, so `job` reads and writes the same data no matter what directory you run it from. Nothing is ever sent anywhere else.
+
+If `data/applications.json` already exists inside this checkout (from before this change, or from an existing installation), it's used instead — so upgrading in place never orphans your existing records. That path is listed in `.gitignore` and never committed.
 
 ## License
 
