@@ -4,61 +4,61 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 
 # ---- strip_trailing_tz (direct unit tests) -----------------------------------
 
 def test_strip_trailing_tz_too_short_unchanged():
-    assert job.strip_trailing_tz(["status"]) == (["status"], None)
+    assert job._legacy.strip_trailing_tz(["status"]) == (["status"], None)
 
 
 def test_strip_trailing_tz_no_tz_marker_unchanged():
     rest = ["status", "Interviewing"]
-    assert job.strip_trailing_tz(rest) == (rest, None)
+    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
 
 
 def test_strip_trailing_tz_bare_lookup_shape():
-    assert job.strip_trailing_tz(["tz", "CT"]) == ([], "CT")
+    assert job._legacy.strip_trailing_tz(["tz", "CT"]) == ([], "CT")
 
 
 def test_strip_trailing_tz_all_shape():
-    assert job.strip_trailing_tz(["--all", "tz", "CT"]) == (["--all"], "CT")
+    assert job._legacy.strip_trailing_tz(["--all", "tz", "CT"]) == (["--all"], "CT")
 
 
 def test_strip_trailing_tz_delete_shape():
-    assert job.strip_trailing_tz(["delete", "tz", "ET"]) == (["delete"], "ET")
+    assert job._legacy.strip_trailing_tz(["delete", "tz", "ET"]) == (["delete"], "ET")
 
 
 def test_strip_trailing_tz_unrecognized_single_token_unchanged():
     rest = ["somefield", "tz", "CT"]
-    assert job.strip_trailing_tz(rest) == (rest, None)
+    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
 
 
 def test_strip_trailing_tz_delete_hard_shape():
-    result = job.strip_trailing_tz(["delete", "--hard", "tz", "MT"])
+    result = job._legacy.strip_trailing_tz(["delete", "--hard", "tz", "MT"])
     assert result == (["delete", "--hard"], "MT")
 
 
 def test_strip_trailing_tz_status_shape():
-    result = job.strip_trailing_tz(["status", "Interviewing", "tz", "PT"])
+    result = job._legacy.strip_trailing_tz(["status", "Interviewing", "tz", "PT"])
     assert result == (["status", "Interviewing"], "PT")
 
 
 def test_strip_trailing_tz_note_shape():
-    result = job.strip_trailing_tz(["note", "Some note", "tz", "PT"])
+    result = job._legacy.strip_trailing_tz(["note", "Some note", "tz", "PT"])
     assert result == (["note", "Some note"], "PT")
 
 
 def test_strip_trailing_tz_delete_with_non_hard_third_token_unchanged():
     rest = ["delete", "--soft-ish", "tz", "CT"]
-    assert job.strip_trailing_tz(rest) == (rest, None)
+    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
 
 
 def test_strip_trailing_tz_too_many_preceding_tokens_unchanged():
     rest = ["a", "b", "c", "tz", "CT"]
-    assert job.strip_trailing_tz(rest) == (rest, None)
+    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
 
 
 # ---- dispatch_company branches (via run_cli) --------------------------------
@@ -113,7 +113,7 @@ def test_dispatch_lookup_with_valid_trailing_tz(run_cli, stub_confirm):
 def test_dispatch_lookup_with_invalid_trailing_tz_errors_and_prints_nothing_else(run_cli):
     run_cli("Big Corp", "Data Engineer")
     out = run_cli("Big Corp", "tz", "XX")
-    assert out.strip() == job.unknown_tz_message("XX")
+    assert out.strip() == job._legacy.unknown_tz_message("XX")
 
 
 def test_dispatch_status_with_invalid_trailing_tz(run_cli):

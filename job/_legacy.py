@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-"""Track job applications: company, title, dates, and status."""
-
 import difflib
-import json
 import os
 import re
 import select
@@ -10,30 +6,10 @@ import shutil
 import sys
 import termios
 import tty
-import uuid
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_LEGACY_DATA_DIR = os.path.join(SCRIPT_DIR, "data")
-_LEGACY_DATA_FILE = os.path.join(_LEGACY_DATA_DIR, "applications.json")
-_XDG_DATA_DIR = os.path.join(
-    os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share"),
-    "job-cli",
-)
-_XDG_CONFIG_DIR = os.path.join(
-    os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config"),
-    "job-cli",
-)
-CONFIG_FILE = os.path.join(_XDG_CONFIG_DIR, "config.json")
-
-if os.path.exists(_LEGACY_DATA_FILE):
-    # Pre-existing checkouts keep using their in-repo data file untouched.
-    DATA_DIR = _LEGACY_DATA_DIR
-    DATA_FILE = _LEGACY_DATA_FILE
-else:
-    DATA_DIR = _XDG_DATA_DIR
-    DATA_FILE = os.path.join(DATA_DIR, "applications.json")
+from . import storage
 
 # Documentation-only: illustrative, not enforced via membership checks anywhere.
 RESERVED = {"list", "status", "delete", "search", "sort", "help", "interview", "interviews", "today", "tz", "config", "note", "favorites"}
@@ -83,119 +59,6 @@ MERIDIEM_RE = re.compile(r"^[AaPp][Mm]$")
 
 def normalize(name):
     return re.sub(r"[^a-z0-9]", "", name.strip().lower())
-
-
-def needs_migration(data):
-    """True if any record predates the id-keyed, soft-delete-aware schema
-    (detected by the absence of the `deleted` field, which every record
-    written under the new schema always has, even freshly-created ones)."""
-    return any("deleted" not in rec for rec in data.values())
-
-
-def migrate_legacy_data(data):
-    """Converts the old company-normalized-name-keyed schema (one record per
-    company, no soft-delete fields) into the new id-keyed schema. Runs once,
-    transparently, the next time the old file is loaded."""
-    migrated = {}
-    for rec in data.values():
-        rec = dict(rec)
-        rec.setdefault("deleted", False)
-        rec.setdefault("deleted_at", None)
-        new_key = new_id(migrated)
-        rec["id"] = new_key
-        migrated[new_key] = rec
-    return migrated
-
-
-def needs_tz_backfill(data):
-    """True if a default timezone is configured AND some record's stored
-    interview isn't already expressed in it -- e.g. a record written before
-    the configured default was changed, or before this feature existed at
-    all. Silently reports nothing to do when no default is configured yet,
-    since load_data() must never force the interactive setup prompt just to
-    run a command that has nothing to do with timezones."""
-    _, default_label = get_default_tz()
-    if default_label is None:
-        return False
-    return any(
-        rec.get("interview") is not None and rec.get("interview_tz") != default_label
-        for rec in data.values()
-    )
-
-
-def backfill_interview_tz(data):
-    """Converts every stored interview datetime to the configured default
-    timezone, in place -- same instant, re-expressed in one zone so every
-    record is mutually comparable. Only ever called after needs_tz_backfill
-    (or a `job config tz` change) has confirmed a default is configured, so
-    this never needs to prompt. Idempotent: once every record matches the
-    current default, needs_tz_backfill is False and this never runs again."""
-    default_iana, default_label = get_default_tz()
-    for rec in data.values():
-        if rec.get("interview") is None:
-            continue
-        aware_dt = datetime.fromisoformat(rec["interview"]).astimezone(ZoneInfo(default_iana))
-        rec["interview"] = aware_dt.isoformat()
-        rec["interview_tz"] = default_label
-    return data
-
-
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    with open(DATA_FILE, "r") as f:
-        data = json.load(f)
-    changed = False
-    if needs_migration(data):
-        data = migrate_legacy_data(data)
-        changed = True
-    if needs_tz_backfill(data):
-        data = backfill_interview_tz(data)
-        changed = True
-    if changed:
-        save_data(data)
-    return data
-
-
-def save_data(data):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2, sort_keys=True)
-
-
-def load_config():
-    if not os.path.exists(CONFIG_FILE):
-        return {}
-    with open(CONFIG_FILE, "r") as f:
-        return json.load(f)
-
-
-def save_config(config):
-    os.makedirs(_XDG_CONFIG_DIR, exist_ok=True)
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f, indent=2, sort_keys=True)
-
-
-def get_default_tz():
-    """Returns (iana_zone, label) for the user's configured default
-    timezone, or (None, None) if none is configured yet."""
-    label = load_config().get("default_tz")
-    if label is None:
-        return None, None
-    return TZ_ALIASES.get(label, (None, None))
-
-
-def set_default_tz(label):
-    config = load_config()
-    config["default_tz"] = label
-    save_config(config)
-
-
-def new_id(data):
-    while True:
-        candidate = uuid.uuid4().hex[:8]
-        if candidate not in data:
-            return candidate
 
 
 def active_records(data):
@@ -423,7 +286,7 @@ def resolve_or_prompt_default_tz():
     Either failure path returns (None, None), the same "can't resolve"
     shape an unrecognized explicit token gets from resolve_tz_token, so
     callers can treat both identically."""
-    iana_zone, label = get_default_tz()
+    iana_zone, label = storage.get_default_tz()
     if label is not None:
         return iana_zone, label
 
@@ -447,7 +310,7 @@ def resolve_or_prompt_default_tz():
         print(unknown_tz_message(answer))
         return None, None
 
-    set_default_tz(label)
+    storage.set_default_tz(label)
     print(f"Default timezone set to {label}.")
     return iana_zone, label
 
@@ -609,7 +472,7 @@ def cmd_create(data, company, title, status=None):
             return
 
     today = date.today().isoformat()
-    key = new_id(data)
+    key = storage.new_id(data)
     data[key] = {
         "id": key,
         "company": company,
@@ -624,7 +487,7 @@ def cmd_create(data, company, title, status=None):
         "deleted": False,
         "deleted_at": None,
     }
-    save_data(data)
+    storage.save_data(data)
     print(f"Created record for {company}:")
     print_record(data[key])
 
@@ -636,7 +499,7 @@ def cmd_status(data, company, new_status, display_tz=None):
         return
     data[key]["status"] = new_status
     data[key]["status_changed"] = date.today().isoformat()
-    save_data(data)
+    storage.save_data(data)
     print(f"Updated {data[key]['company']}:")
     print_record(data[key], display_tz=display_tz)
 
@@ -652,11 +515,11 @@ def cmd_note(data, company, text, display_tz=None):
             print(f"{rec['company']} has no note set.")
             return
         rec["note"] = None
-        save_data(data)
+        storage.save_data(data)
         print(f"Cleared {rec['company']}'s note.")
         return
     rec["note"] = text
-    save_data(data)
+    storage.save_data(data)
     print(f"Updated {rec['company']}'s note:")
     print_record(rec, display_tz=display_tz)
 
@@ -672,7 +535,7 @@ def cmd_favorite(data, company, favorite=True):
         return
     rec = data[key]
     rec["is_favorite"] = favorite
-    save_data(data)
+    storage.save_data(data)
     if favorite:
         print(f"Marked {rec['company']} as a favorite.")
     else:
@@ -721,7 +584,7 @@ def cmd_rename(data, company, new_name):
     affected = [r for r in data.values() if normalize(r["company"]) == old_norm]
     for r in affected:
         r["company"] = new_name
-    save_data(data)
+    storage.save_data(data)
 
     cascaded = len(affected) - 1
     if cascaded > 0:
@@ -743,13 +606,13 @@ def cmd_delete(data, company, hard=False, display_tz=None):
             return
         if hard:
             del data[key]
-            save_data(data)
+            storage.save_data(data)
             print(f"Permanently deleted record for {rec['company']}.")
         else:
             rec["deleted"] = True
             rec["deleted_at"] = date.today().isoformat()
             rec["is_favorite"] = False
-            save_data(data)
+            storage.save_data(data)
             print(f"Soft-deleted record for {rec['company']}. "
                   f"It's hidden from result sets but can be viewed with `job {rec['company']} --all`.")
         return
@@ -790,7 +653,7 @@ def cmd_delete(data, company, hard=False, display_tz=None):
             return
         for rec in candidates:
             del data[rec["id"]]
-        save_data(data)
+        storage.save_data(data)
         print(f"Permanently deleted {len(candidates)} records for {display}.")
         return
 
@@ -808,7 +671,7 @@ def cmd_delete_hard_one(data, rec, display_tz=None):
         print("Cancelled.")
         return
     del data[rec["id"]]
-    save_data(data)
+    storage.save_data(data)
     print(f"Permanently deleted record for {rec['company']}.")
 
 
@@ -837,7 +700,7 @@ def cmd_interview_cancel(data, key):
     rec["interview"] = None
     rec["interview_tz"] = None
     rec["status_changed"] = date.today().isoformat()
-    save_data(data)
+    storage.save_data(data)
     print(f"Cleared {rec['company']}'s interview.")
 
 
@@ -863,13 +726,13 @@ def cmd_interview_set(data, key, aware_dt, tz_label):
     rec["interview"] = normalized_dt.isoformat()
     rec["interview_tz"] = normalized_label
     rec["status_changed"] = date.today().isoformat()
-    save_data(data)
+    storage.save_data(data)
     print(f"Updated {rec['company']}'s interview:")
     print_record(rec)
 
 
 def cmd_config_tz_show():
-    _, label = get_default_tz()
+    _, label = storage.get_default_tz()
     if label is None:
         print("Default timezone: not set yet. Set one with `job config tz <ZONE>`.")
     else:
@@ -882,7 +745,7 @@ def cmd_config_tz_set(data, token):
         print(unknown_tz_message(token))
         return
 
-    old_iana, old_label = get_default_tz()
+    old_iana, old_label = storage.get_default_tz()
     if old_label == label:
         print(f"Default timezone is already {label}.")
         return
@@ -899,10 +762,10 @@ def cmd_config_tz_set(data, token):
         print("Cancelled.")
         return
 
-    set_default_tz(label)
+    storage.set_default_tz(label)
     if count:
-        data = backfill_interview_tz(data)
-        save_data(data)
+        data = storage.backfill_interview_tz(data)
+        storage.save_data(data)
         print(f"Default timezone set to {label}. Converted {count} interview(s).")
     else:
         print(f"Default timezone set to {label}.")
@@ -1534,7 +1397,7 @@ def dispatch_company(data, company, rest):
 
 def main():
     args = sys.argv[1:]
-    data = load_data()
+    data = storage.load_data()
 
     if len(args) == 0:
         print_usage()

@@ -14,8 +14,8 @@ def isolate_data_file(tmp_path, monkeypatch):
     """Every test gets its own scratch data dir -- the real
     data/applications.json is never touched, even if a test crashes."""
     data_dir = tmp_path / "data"
-    monkeypatch.setattr(job, "DATA_DIR", str(data_dir))
-    monkeypatch.setattr(job, "DATA_FILE", str(data_dir / "applications.json"))
+    monkeypatch.setattr(job.storage, "DATA_DIR", str(data_dir))
+    monkeypatch.setattr(job.storage, "DATA_FILE", str(data_dir / "applications.json"))
 
 
 @pytest.fixture(autouse=True)
@@ -26,9 +26,9 @@ def isolate_config_file(tmp_path, monkeypatch):
     know about the first-run setup prompt; tests specifically covering that
     prompt clear it with clear_default_tz."""
     config_dir = tmp_path / "config"
-    monkeypatch.setattr(job, "_XDG_CONFIG_DIR", str(config_dir))
-    monkeypatch.setattr(job, "CONFIG_FILE", str(config_dir / "config.json"))
-    job.set_default_tz("CT")
+    monkeypatch.setattr(job.storage, "_XDG_CONFIG_DIR", str(config_dir))
+    monkeypatch.setattr(job.storage, "CONFIG_FILE", str(config_dir / "config.json"))
+    job.storage.set_default_tz("CT")
 
 
 @pytest.fixture
@@ -36,14 +36,14 @@ def clear_default_tz():
     """Removes the pre-seeded default timezone so a test can exercise the
     "nothing configured yet" first-run path."""
     def _clear():
-        job.save_config({})
+        job.storage.save_config({})
     return _clear
 
 
 @pytest.fixture
 def freeze_date(monkeypatch):
-    """freeze_date(2026, 7, 16) makes job.date.today() return that date,
-    while job.date(...) construction and all other `date` behavior stays
+    """freeze_date(2026, 7, 16) makes job._legacy.date.today() return that date,
+    while job._legacy.date(...) construction and all other `date` behavior stays
     real (FrozenDate is a plain subclass)."""
     def _freeze(year, month, day):
         fixed = date(year, month, day)
@@ -53,14 +53,14 @@ def freeze_date(monkeypatch):
             def today(cls):
                 return fixed
 
-        monkeypatch.setattr(job, "date", FrozenDate)
+        monkeypatch.setattr(job._legacy, "date", FrozenDate)
         return fixed
     return _freeze
 
 
 @pytest.fixture
 def freeze_now(monkeypatch):
-    """freeze_now(some_aware_datetime) makes job.datetime.now() return that
+    """freeze_now(some_aware_datetime) makes job._legacy.datetime.now() return that
     instant. Comparisons of aware datetimes are instant-based regardless of
     what local zone .astimezone() later relabels them with, so this is safe
     independent of the host machine's configured timezone."""
@@ -70,27 +70,27 @@ def freeze_now(monkeypatch):
             def now(cls, tz=None):
                 return aware_dt
 
-        monkeypatch.setattr(job, "datetime", FrozenDateTime)
+        monkeypatch.setattr(job._legacy, "datetime", FrozenDateTime)
         return aware_dt
     return _freeze
 
 
 @pytest.fixture
 def stub_confirm(monkeypatch):
-    """stub_confirm(True) or stub_confirm(False) makes every job.confirm()
+    """stub_confirm(True) or stub_confirm(False) makes every job._legacy.confirm()
     call resolve without touching input(); use answer_input instead for
     tests specifically about the y/n prompt-parsing logic itself."""
     def _set(value=True):
-        monkeypatch.setattr(job, "confirm", lambda prompt: value)
+        monkeypatch.setattr(job._legacy, "confirm", lambda prompt: value)
     return _set
 
 
 @pytest.fixture
 def stub_meridiem(monkeypatch):
     """stub_meridiem('am') / ('pm') / (None) makes every
-    job.confirm_meridiem() call resolve without touching input()."""
+    job._legacy.confirm_meridiem() call resolve without touching input()."""
     def _set(value):
-        monkeypatch.setattr(job, "confirm_meridiem", lambda hour, minute: value)
+        monkeypatch.setattr(job._legacy, "confirm_meridiem", lambda hour, minute: value)
     return _set
 
 
@@ -128,7 +128,7 @@ def term_size(monkeypatch):
     logic doesn't depend on the actual terminal running the test suite."""
     def _set(columns, lines=24):
         monkeypatch.setattr(
-            job.shutil, "get_terminal_size",
+            job._legacy.shutil, "get_terminal_size",
             lambda fallback=(80, 24): os.terminal_size((columns, lines)),
         )
     return _set
@@ -140,17 +140,17 @@ def tty(monkeypatch):
     the given values, independent of however pytest is actually capturing
     output for this run."""
     def _set(stdout=True, stdin=True):
-        monkeypatch.setattr(job.sys.stdout, "isatty", lambda: stdout, raising=False)
-        monkeypatch.setattr(job.sys.stdin, "isatty", lambda: stdin, raising=False)
+        monkeypatch.setattr(job._legacy.sys.stdout, "isatty", lambda: stdout, raising=False)
+        monkeypatch.setattr(job._legacy.sys.stdin, "isatty", lambda: stdin, raising=False)
     return _set
 
 
 @pytest.fixture
 def run_cli(monkeypatch, capsys):
     """Drives the CLI the way a real invocation would: sets sys.argv, calls
-    job.main(), and returns captured stdout."""
+    job._legacy.main(), and returns captured stdout."""
     def _run(*argv):
-        monkeypatch.setattr(job.sys, "argv", ["job"] + list(argv))
-        job.main()
+        monkeypatch.setattr(job._legacy.sys, "argv", ["job"] + list(argv))
+        job._legacy.main()
         return capsys.readouterr().out
     return _run

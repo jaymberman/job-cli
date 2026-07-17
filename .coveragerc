@@ -1,6 +1,6 @@
 [run]
 branch = True
-include = job.py
+include = job/*.py
 
 [report]
 fail_under = 90

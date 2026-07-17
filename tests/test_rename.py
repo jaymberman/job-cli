@@ -4,7 +4,7 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 
@@ -36,7 +36,7 @@ def test_rename_needs_no_confirmation_when_no_collision(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("a no-collision rename should never call confirm()")
-    monkeypatch.setattr(job, "confirm", explode)
+    monkeypatch.setattr(job._legacy, "confirm", explode)
     out = run_cli("Big Corp", "--rename", "Vantage Systems")
     assert "Renamed Big Corp to Vantage Systems." in out
 
@@ -55,13 +55,13 @@ def test_rename_fuzzy_resolves_old_name(run_cli):
 
 def test_rename_preserves_note_favorite_and_interview_fields(run_cli):
     run_cli("Big Corp", "Data Engineer")
-    data = job.load_data()
+    data = job.storage.load_data()
     (key,) = data.keys()
     data[key]["note"] = "Referred by a friend"
     data[key]["is_favorite"] = True
     data[key]["interview"] = "2026-07-13T13:00:00-05:00"
     data[key]["interview_tz"] = "CT"
-    job.save_data(data)
+    job.storage.save_data(data)
 
     run_cli("Big Corp", "--rename", "Vantage Systems")
 
@@ -150,7 +150,7 @@ def test_rename_declined_only_collision_prompt_wording(run_cli, stub_confirm, mo
     def capture(prompt):
         seen["prompt"] = prompt
         return True
-    monkeypatch.setattr(job, "confirm", capture)
+    monkeypatch.setattr(job._legacy, "confirm", capture)
     run_cli("Big Corp", "--rename", "Vantage Systems")
     assert seen["prompt"] == "already applied to Vantage Systems (declined). Do you want to proceed with the rename?"
 
@@ -183,7 +183,7 @@ def test_self_rename_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("a self-rename should never call confirm()")
-    monkeypatch.setattr(job, "confirm", explode)
+    monkeypatch.setattr(job._legacy, "confirm", explode)
     run_cli("bigcorp", "--rename", "Big Corp")
 
 
@@ -192,7 +192,7 @@ def test_self_rename_needs_no_confirmation(run_cli, monkeypatch):
 def test_rename_unknown_company_says_no_applications_sent(run_cli):
     out = run_cli("Nonexistent Co", "--rename", "New Name")
     assert out.strip() == "no applications sent"
-    assert job.load_data() == {}
+    assert job.storage.load_data() == {}
 
 
 def test_rename_soft_deleted_only_old_company_says_no_applications_sent(run_cli, stub_confirm):

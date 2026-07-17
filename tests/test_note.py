@@ -4,7 +4,7 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 
@@ -60,7 +60,7 @@ def test_note_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("note should never call confirm()")
-    monkeypatch.setattr(job, "confirm", explode)
+    monkeypatch.setattr(job._legacy, "confirm", explode)
     out = run_cli("Big Corp", "note", "Some note")
     assert "Updated Big Corp's note:" in out
 
@@ -74,7 +74,7 @@ def test_note_missing_value_errors(run_cli):
 def test_note_as_bare_second_arg_blocks_create_instead_of_using_it_as_title(run_cli):
     out = run_cli("New Co", "note")
     assert "Missing note value." in out
-    assert job.load_data() == {}
+    assert job.storage.load_data() == {}
 
 
 # ---- note clear ---------------------------------------------------------------
@@ -157,7 +157,7 @@ def test_note_shown_in_search_results(run_cli):
 def test_note_not_settable_at_creation_extra_arg_is_too_many_arguments(run_cli):
     out = run_cli("Big Corp", "Data Engineer", "sent app", "Some note")
     assert "Too many arguments." in out
-    assert job.load_data() == {}
+    assert job.storage.load_data() == {}
 
 
 # ---- note excluded from search matching ---------------------------------------
