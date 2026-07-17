@@ -9,12 +9,14 @@
 
 <div align="center">
   <kbd>
-    <i>"Ugh, I have so many applications and interviews to track, but I'm not a phone calendar guy!"</i>
-    <br>
-    <i>- The guy who made this cli</i>
-    <br><br>
+    <h2><i>"Ugh, I have so many applications and interviews to track, but I'm not a phone calendar guy!"</i></h2>
+    <h3><i>- The guy who made this cli</i></h3>
   </kbd>
 </div>
+
+
+<br>
+
 
 ```
 $ job "Big Corp" "Data Engineer"
