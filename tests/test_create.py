@@ -4,7 +4,7 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 
@@ -60,7 +60,7 @@ def test_create_duplicate_fuzzy_active_is_hard_error(run_cli):
 
 def test_create_after_soft_delete_prompts_and_accepts(run_cli, monkeypatch):
     prompts = []
-    monkeypatch.setattr(job, "confirm", lambda prompt: prompts.append(prompt) or True)
+    monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
     run_cli("Big Corp", "Data Engineer")
     run_cli("Big Corp", "delete")
     run_cli("Big Corp", "Data Engineer II")
@@ -75,7 +75,7 @@ def test_create_after_soft_delete_prompts_and_accepts(run_cli, monkeypatch):
 
 def test_create_after_soft_delete_declined_creates_nothing(run_cli, monkeypatch):
     answers = iter([True, False])  # accept the soft-delete, decline the reapply
-    monkeypatch.setattr(job, "confirm", lambda prompt: next(answers))
+    monkeypatch.setattr(job.company, "confirm", lambda prompt: next(answers))
     run_cli("Big Corp", "Data Engineer")
     run_cli("Big Corp", "delete")
     out = run_cli("Big Corp", "Data Engineer II")

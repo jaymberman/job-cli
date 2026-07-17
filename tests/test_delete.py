@@ -4,7 +4,7 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 
@@ -171,7 +171,7 @@ def test_hard_delete_multiple_candidates_eof_on_number_prompt_cancels(monkeypatc
         raise EOFError
 
     monkeypatch.setattr("builtins.input", raise_eof)
-    job.cmd_delete(data, "Big Corp", hard=True)
+    job.commands.cmd_delete(data, "Big Corp", hard=True)
     assert data == {"11111111": r1, "22222222": r2}
 
 
@@ -181,7 +181,7 @@ def test_cmd_delete_hard_one_confirmed(stub_confirm, capsys):
     stub_confirm(True)
     r = rec("Big Corp", deleted=True, deleted_at="2026-02-01")
     data = {"11111111": r}
-    job.cmd_delete_hard_one(data, r)
+    job.commands.cmd_delete_hard_one(data, r)
     assert data == {}
     assert "Permanently deleted record for Big Corp." in capsys.readouterr().out
 
@@ -190,6 +190,6 @@ def test_cmd_delete_hard_one_declined(stub_confirm, capsys):
     stub_confirm(False)
     r = rec("Big Corp", deleted=True, deleted_at="2026-02-01")
     data = {"11111111": r}
-    job.cmd_delete_hard_one(data, r)
+    job.commands.cmd_delete_hard_one(data, r)
     assert data == {"11111111": r}
     assert "Cancelled." in capsys.readouterr().out

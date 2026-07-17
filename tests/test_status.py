@@ -4,7 +4,7 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 

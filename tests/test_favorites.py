@@ -4,7 +4,7 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 
@@ -78,7 +78,7 @@ def test_favorite_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("--favorite should never call confirm()")
-    monkeypatch.setattr(job, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     out = run_cli("Big Corp", "--favorite")
     assert "Marked Big Corp as a favorite." in out
 
@@ -89,7 +89,7 @@ def test_remove_favorite_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("--remove-favorite should never call confirm()")
-    monkeypatch.setattr(job, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     out = run_cli("Big Corp", "--remove-favorite")
     assert "Removed Big Corp from favorites." in out
 
@@ -111,25 +111,25 @@ def test_remove_favorite_no_active_record_says_no_applications_sent(run_cli):
 def test_favorite_on_unknown_company_never_creates_a_record(run_cli):
     out = run_cli("Nonexistent Co", "--favorite")
     assert out.strip() == "no applications sent"
-    assert job.load_data() == {}
+    assert job.storage.load_data() == {}
 
 
 def test_remove_favorite_on_unknown_company_never_creates_a_record(run_cli):
     out = run_cli("Nonexistent Co", "--remove-favorite")
     assert out.strip() == "no applications sent"
-    assert job.load_data() == {}
+    assert job.storage.load_data() == {}
 
 
 def test_favorite_extra_argument_errors_and_does_not_create(run_cli):
     out = run_cli("New Co", "--favorite", "extra")
     assert "`--favorite` doesn't take an extra argument." in out
-    assert job.load_data() == {}
+    assert job.storage.load_data() == {}
 
 
 def test_remove_favorite_extra_argument_errors_and_does_not_create(run_cli):
     out = run_cli("New Co", "--remove-favorite", "extra")
     assert "`--remove-favorite` doesn't take an extra argument." in out
-    assert job.load_data() == {}
+    assert job.storage.load_data() == {}
 
 
 # ---- favorite status is never displayed -----------------------------------------
@@ -224,7 +224,7 @@ def test_favorites_ignores_legacy_records_missing_is_favorite_field(run_cli):
     # Records predating this feature have no is_favorite key at all;
     # cmd_favorites must treat that as not-favorited via .get(..., False),
     # not crash or misclassify it as favorited.
-    data = job.load_data()
+    data = job.storage.load_data()
     data["11111111"] = {
         "id": "11111111",
         "company": "Legacy Co",
@@ -238,7 +238,7 @@ def test_favorites_ignores_legacy_records_missing_is_favorite_field(run_cli):
         "deleted": False,
         "deleted_at": None,
     }
-    job.save_data(data)
+    job.storage.save_data(data)
     out = run_cli("favorites")
     assert out.strip() == "no favorites yet"
 

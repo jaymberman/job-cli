@@ -4,7 +4,7 @@ import job
 
 
 def read_data():
-    with open(job.DATA_FILE) as f:
+    with open(job.storage.DATA_FILE) as f:
         return json.load(f)
 
 
@@ -38,7 +38,7 @@ def test_interview_set_declined_leaves_interview_unset(run_cli, stub_confirm):
 
 def test_interview_replacing_existing_with_different_tz_normalizes_and_shows_conversion(run_cli, monkeypatch):
     prompts = []
-    monkeypatch.setattr(job, "confirm", lambda prompt: prompts.append(prompt) or True)
+    monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
     run_cli("Big Corp", "Data Engineer")
     run_cli("Big Corp", "interview", "2026-07-13", "13:00", "CT")
     run_cli("Big Corp", "interview", "2026-08-01", "9am", "ET")
@@ -53,7 +53,7 @@ def test_interview_replacing_existing_with_different_tz_normalizes_and_shows_con
 
 def test_interview_set_with_non_default_tz_normalizes_and_shows_conversion(run_cli, monkeypatch):
     prompts = []
-    monkeypatch.setattr(job, "confirm", lambda prompt: prompts.append(prompt) or True)
+    monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
     run_cli("Acme", "Data Engineer")
     run_cli("Acme", "interview", "2026-08-01", "9am", "ET")
     assert prompts[-1] == (
@@ -112,7 +112,7 @@ def test_interview_cancel_needs_no_confirmation(run_cli, stub_confirm, monkeypat
 
     def explode(prompt):
         raise AssertionError("cancel should never call confirm()")
-    monkeypatch.setattr(job, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     out = run_cli("Big Corp", "interview", "cancel")
     assert "Cleared Big Corp's interview." in out
 
