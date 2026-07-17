@@ -80,7 +80,7 @@ def test_load_data_returns_current_schema_unchanged():
 
 def test_load_data_migrates_legacy_file_in_place():
     legacy = {"bigcorp": legacy_record()}
-    job._legacy.os.makedirs(job.storage.DATA_DIR, exist_ok=True)
+    job.display.os.makedirs(job.storage.DATA_DIR, exist_ok=True)
     with open(job.storage.DATA_FILE, "w") as f:
         json.dump(legacy, f)
 
@@ -96,10 +96,10 @@ def test_load_data_migrates_legacy_file_in_place():
 
 
 def test_save_data_creates_data_dir_and_round_trips():
-    assert not job._legacy.os.path.exists(job.storage.DATA_DIR)
+    assert not job.display.os.path.exists(job.storage.DATA_DIR)
     rec = new_record()
     job.storage.save_data({rec["id"]: rec})
-    assert job._legacy.os.path.exists(job.storage.DATA_FILE)
+    assert job.display.os.path.exists(job.storage.DATA_FILE)
     with open(job.storage.DATA_FILE) as f:
         on_disk = json.load(f)
     assert on_disk == {rec["id"]: rec}
@@ -175,7 +175,7 @@ def test_load_data_migrates_and_backfills_legacy_record_in_one_pass():
     legacy["interview"] = "2026-07-17T11:00:00-04:00"
     legacy["interview_tz"] = "ET"
     data = {"bigcorp": legacy}
-    job._legacy.os.makedirs(job.storage.DATA_DIR, exist_ok=True)
+    job.display.os.makedirs(job.storage.DATA_DIR, exist_ok=True)
     with open(job.storage.DATA_FILE, "w") as f:
         json.dump(data, f)
     (rec,) = job.storage.load_data().values()
