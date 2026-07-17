@@ -21,30 +21,40 @@ $ job "Big Corp" "Data Engineer"
 Created record for Big Corp.
 
 $ job "big corp"
-Company        Title           Applied      Interview  Status Changed  Status
-Big Corp       Data Engineer   2026-07-16   —          2026-07-16      sent app
+Company        Title           Applied      Interview  Status Changed  Status    Note
+Big Corp       Data Engineer   2026-07-16   —          2026-07-16      sent app  —
 
 $ job "big corp" "Product Manager - Data"
 Big Corp already has a record
 
+$ job "Big Corp" note "Referred by a friend on the team"
+Updated Big Corp's note:
+Company: Big Corp
+Title: Data Engineer
+Applied: 2026-07-16
+Interview: —
+Status: sent app
+Status changed: 2026-07-16
+Note: Referred by a friend on the team
+
 $ job list
-Company        Title           Applied      Interview             Status Changed  Status
-Big Corp       Data Engineer   2026-07-16   —                     2026-07-16      sent app
-Big Corp5      Data Engineer   2026-07-16   —                     2026-07-16      sent app
-Big Corp6      Data Engineer   2026-07-16   —                     2026-07-16      sent app
-Big Corp7      Data Engineer   2026-07-16   —                     2026-07-16      sent app
-Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever
-Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status
-Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want
+Company        Title           Applied      Interview             Status Changed  Status    Note
+Big Corp       Data Engineer   2026-07-16   —                     2026-07-16      sent app  Referred by a friend on the team
+Big Corp5      Data Engineer   2026-07-16   —                     2026-07-16      sent app  —
+Big Corp6      Data Engineer   2026-07-16   —                     2026-07-16      sent app  —
+Big Corp7      Data Engineer   2026-07-16   —                     2026-07-16      sent app  —
+Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever  —
+Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status    —
+Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want  —
 
 $ job "big corp" interview 7/20 9am ET
 
 $ job interviews
-Company        Title           Applied      Interview             Status Changed  Status
-Big Corp       Data Engineer   2026-07-16   2026-07-20 09:00 ET   2026-07-16      sent app
-Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever
-Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status
-Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want
+Company        Title           Applied      Interview             Status Changed  Status    Note
+Big Corp       Data Engineer   2026-07-16   2026-07-20 09:00 ET   2026-07-16      sent app  Referred by a friend on the team
+Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever  —
+Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status    —
+Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want  —
 
 ```
 
@@ -54,6 +64,7 @@ Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14    
 - **Typo-tolerant** — company names are matched case-insensitively and fuzzily (`BigCorp`, `BigCorpconsulting`, and `BigCorp consulzing` all resolve to "BigCorp Consulting"), with a confirmation prompt whenever a match is uncertain.
 - **Soft delete by default** — deleting a record hides it from everyday views but keeps its history, so reapplying to a company you were once declined by doesn't erase the past. `delete --hard` is there when you really want something gone.
 - **Freeform status** — status is just text. No enum to fight with.
+- **Notes on every record** — attach freeform context to any record, shown wherever that record is returned; edit or clear it any time, with no history of past edits.
 - **Interview scheduling with real timezone handling** — type interview times in whatever shorthand you'd naturally use (`2026-07-13 13:00 CT`, `1/1/2027 9pm ET`, `7/13 3pm`); ambiguous hours are always confirmed, never guessed.
 - **Color-coded, scrollable tables** — interview rows are highlighted (blue = today, green = future, yellow = past, red = soft-deleted), and tables wider or taller than your terminal scroll in place instead of wrapping.
 - **Search across everything** — one fuzzy keyword against company, title, or status.
@@ -109,15 +120,17 @@ coverage report -m
 
 ## Usage
 
-Company names, titles, and statuses are each passed as a single shell argument — quote any value that contains spaces.
+Company names, titles, statuses, and notes are each passed as a single shell argument — quote any value that contains spaces.
 
 | Command | Example | Description |
 |---|---|---|
 | Look up a company | `job "Big Corp"` | Shows the active record (or `no applications sent`) |
 | Look up, including history | `job "Big Corp" --all` | Also shows soft-deleted records for that company |
-| Create a record | `job "Big Corp" "Data Engineer"` | Applied date and status (`sent app`) are set automatically |
+| Create a record | `job "Big Corp" "Data Engineer"` | Applied date and status (`sent app`) are set automatically; note starts out unset |
 | Create with a custom status | `job "Big Corp" "Data Engineer" "Recruiter reached out"` | Same as above, with your own initial status |
 | Update status | `job "Big Corp" status "Interviewing"` | Also updates the status-changed date |
+| Set or edit a note | `job "Big Corp" note "Referred by a friend"` | Applies immediately, no confirmation; shown wherever the record is returned |
+| Clear a note | `job "Big Corp" note clear` | Resets the note back to unset |
 | Schedule an interview | `job "Big Corp" interview 2026-07-13 13:00 CT` | Flexible date/time formats; always confirms before saving |
 | Schedule with `tz` keyword | `job "Big Corp" interview 1/1/2027 9pm tz ET` | Same as above; `tz <ZONE>` is an explicit alternative to a bare trailing zone |
 | Cancel an interview | `job "Big Corp" interview cancel` | Clears the scheduled interview, no confirmation needed |

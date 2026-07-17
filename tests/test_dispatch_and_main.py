@@ -46,6 +46,11 @@ def test_strip_trailing_tz_status_shape():
     assert result == (["status", "Interviewing"], "PT")
 
 
+def test_strip_trailing_tz_note_shape():
+    result = job.strip_trailing_tz(["note", "Some note", "tz", "PT"])
+    assert result == (["note", "Some note"], "PT")
+
+
 def test_strip_trailing_tz_delete_with_non_hard_third_token_unchanged():
     rest = ["delete", "--soft-ish", "tz", "CT"]
     assert job.strip_trailing_tz(rest) == (rest, None)

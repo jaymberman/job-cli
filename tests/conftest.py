@@ -18,6 +18,28 @@ def isolate_data_file(tmp_path, monkeypatch):
     monkeypatch.setattr(job, "DATA_FILE", str(data_dir / "applications.json"))
 
 
+@pytest.fixture(autouse=True)
+def isolate_config_file(tmp_path, monkeypatch):
+    """Every test gets its own scratch config dir -- the real
+    ~/.config/job-cli/config.json is never touched. Pre-seeds a default
+    timezone of CT so existing interview/display behavior doesn't need to
+    know about the first-run setup prompt; tests specifically covering that
+    prompt clear it with clear_default_tz."""
+    config_dir = tmp_path / "config"
+    monkeypatch.setattr(job, "_XDG_CONFIG_DIR", str(config_dir))
+    monkeypatch.setattr(job, "CONFIG_FILE", str(config_dir / "config.json"))
+    job.set_default_tz("CT")
+
+
+@pytest.fixture
+def clear_default_tz():
+    """Removes the pre-seeded default timezone so a test can exercise the
+    "nothing configured yet" first-run path."""
+    def _clear():
+        job.save_config({})
+    return _clear
+
+
 @pytest.fixture
 def freeze_date(monkeypatch):
     """freeze_date(2026, 7, 16) makes job.date.today() return that date,

@@ -22,6 +22,7 @@ def test_create_sets_defaults(run_cli, freeze_date):
     assert rec["status_changed"] == "2026-07-16"
     assert rec["interview"] is None
     assert rec["interview_tz"] is None
+    assert rec["note"] is None
     assert rec["deleted"] is False
     assert rec["deleted_at"] is None
     assert rec["id"] == list(data.keys())[0]

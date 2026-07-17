@@ -36,17 +36,34 @@ def test_interview_set_declined_leaves_interview_unset(run_cli, stub_confirm):
     assert rec["interview"] is None
 
 
-def test_interview_replacing_existing_shows_current_value_in_prompt(run_cli, monkeypatch):
+def test_interview_replacing_existing_with_different_tz_normalizes_and_shows_conversion(run_cli, monkeypatch):
     prompts = []
     monkeypatch.setattr(job, "confirm", lambda prompt: prompts.append(prompt) or True)
     run_cli("Big Corp", "Data Engineer")
     run_cli("Big Corp", "interview", "2026-07-13", "13:00", "CT")
     run_cli("Big Corp", "interview", "2026-08-01", "9am", "ET")
+    assert "You entered 2026-08-01 09:00 ET (America/New_York)" in prompts[-1]
+    assert "converts to 2026-08-01 08:00 CT (America/Chicago)" in prompts[-1]
     assert "currently 2026-07-13 13:00 CT" in prompts[-1]
-    assert "Set it to 2026-08-01 09:00 ET (America/New_York)?" in prompts[-1]
+    assert "Set it to 2026-08-01 08:00 CT (America/Chicago)?" in prompts[-1]
     (rec,) = read_data().values()
-    assert rec["interview"].startswith("2026-08-01T09:00:00")
-    assert rec["interview_tz"] == "ET"
+    assert rec["interview"].startswith("2026-08-01T08:00:00")
+    assert rec["interview_tz"] == "CT"
+
+
+def test_interview_set_with_non_default_tz_normalizes_and_shows_conversion(run_cli, monkeypatch):
+    prompts = []
+    monkeypatch.setattr(job, "confirm", lambda prompt: prompts.append(prompt) or True)
+    run_cli("Acme", "Data Engineer")
+    run_cli("Acme", "interview", "2026-08-01", "9am", "ET")
+    assert prompts[-1] == (
+        "You entered 2026-08-01 09:00 ET (America/New_York) — this converts to "
+        "2026-08-01 08:00 CT (America/Chicago). Set Acme's interview to "
+        "2026-08-01 08:00 CT (America/Chicago)?"
+    )
+    (rec,) = read_data().values()
+    assert rec["interview"].startswith("2026-08-01T08:00:00")
+    assert rec["interview_tz"] == "CT"
 
 
 def test_interview_bad_date_time_prints_error_and_saves_nothing(run_cli):

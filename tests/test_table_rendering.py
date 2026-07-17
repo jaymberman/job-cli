@@ -6,7 +6,7 @@ import job
 
 def make_rec(company, title="Data Engineer", applied="2026-01-01", status="sent app",
              status_changed="2026-01-01", interview=None, interview_tz=None,
-             deleted=False, deleted_at=None, id_="11111111"):
+             note=None, deleted=False, deleted_at=None, id_="11111111"):
     return {
         "id": id_,
         "company": company,
@@ -16,6 +16,7 @@ def make_rec(company, title="Data Engineer", applied="2026-01-01", status="sent 
         "interview_tz": interview_tz,
         "status": status,
         "status_changed": status_changed,
+        "note": note,
         "deleted": deleted,
         "deleted_at": deleted_at,
     }
@@ -26,10 +27,23 @@ def make_rec(company, title="Data Engineer", applied="2026-01-01", status="sent 
 def test_build_table_lines_basic_structure():
     lines, column_starts, row_colors = job.build_table_lines([make_rec("Big Corp")])
     assert lines[0].startswith("Company")
+    assert "Note" in lines[0]
     assert "Deleted" not in lines[0]
     assert len(lines) == 3
     assert row_colors[:2] == [None, None]
     assert "Big Corp" in lines[2]
+
+
+def test_build_table_lines_note_column_shows_value():
+    lines, _, _ = job.build_table_lines([make_rec("Big Corp", note="Referred by a friend")])
+    assert "Referred by a friend" in lines[2]
+
+
+def test_build_table_lines_note_column_is_last_before_deleted():
+    lines, _, _ = job.build_table_lines([make_rec("Big Corp", deleted=True, deleted_at="2026-02-01")],
+                                         show_deleted=True)
+    header = lines[0]
+    assert header.index("Note") < header.index("Deleted")
 
 
 def test_build_table_lines_show_deleted_adds_column():

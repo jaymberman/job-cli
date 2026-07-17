@@ -21,6 +21,11 @@ _XDG_DATA_DIR = os.path.join(
     os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share"),
     "job-cli",
 )
+_XDG_CONFIG_DIR = os.path.join(
+    os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config"),
+    "job-cli",
+)
+CONFIG_FILE = os.path.join(_XDG_CONFIG_DIR, "config.json")
 
 if os.path.exists(_LEGACY_DATA_FILE):
     # Pre-existing checkouts keep using their in-repo data file untouched.
@@ -31,7 +36,7 @@ else:
     DATA_FILE = os.path.join(DATA_DIR, "applications.json")
 
 # Documentation-only: illustrative, not enforced via membership checks anywhere.
-RESERVED = {"list", "status", "delete", "search", "sort", "help", "interview", "interviews", "today", "tz"}
+RESERVED = {"list", "status", "delete", "search", "sort", "help", "interview", "interviews", "today", "tz", "config", "note"}
 AUTO_THRESHOLD = 0.80
 CONFIRM_THRESHOLD = 0.55
 AUTO_MARGIN = 0.12
@@ -69,7 +74,6 @@ TZ_ALIASES = {
     "PDT": ("America/Los_Angeles", "PT"), "PACIFIC": ("America/Los_Angeles", "PT"),
     "UTC": ("UTC", "UTC"), "GMT": ("UTC", "UTC"),
 }
-DEFAULT_TZ_ALIAS = "CT"
 
 ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 SLASH_DATE_RE = re.compile(r"^(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?$")
@@ -103,13 +107,52 @@ def migrate_legacy_data(data):
     return migrated
 
 
+def needs_tz_backfill(data):
+    """True if a default timezone is configured AND some record's stored
+    interview isn't already expressed in it -- e.g. a record written before
+    the configured default was changed, or before this feature existed at
+    all. Silently reports nothing to do when no default is configured yet,
+    since load_data() must never force the interactive setup prompt just to
+    run a command that has nothing to do with timezones."""
+    _, default_label = get_default_tz()
+    if default_label is None:
+        return False
+    return any(
+        rec.get("interview") is not None and rec.get("interview_tz") != default_label
+        for rec in data.values()
+    )
+
+
+def backfill_interview_tz(data):
+    """Converts every stored interview datetime to the configured default
+    timezone, in place -- same instant, re-expressed in one zone so every
+    record is mutually comparable. Only ever called after needs_tz_backfill
+    (or a `job config tz` change) has confirmed a default is configured, so
+    this never needs to prompt. Idempotent: once every record matches the
+    current default, needs_tz_backfill is False and this never runs again."""
+    default_iana, default_label = get_default_tz()
+    for rec in data.values():
+        if rec.get("interview") is None:
+            continue
+        aware_dt = datetime.fromisoformat(rec["interview"]).astimezone(ZoneInfo(default_iana))
+        rec["interview"] = aware_dt.isoformat()
+        rec["interview_tz"] = default_label
+    return data
+
+
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {}
     with open(DATA_FILE, "r") as f:
         data = json.load(f)
+    changed = False
     if needs_migration(data):
         data = migrate_legacy_data(data)
+        changed = True
+    if needs_tz_backfill(data):
+        data = backfill_interview_tz(data)
+        changed = True
+    if changed:
         save_data(data)
     return data
 
@@ -118,6 +161,34 @@ def save_data(data):
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=2, sort_keys=True)
+
+
+def load_config():
+    if not os.path.exists(CONFIG_FILE):
+        return {}
+    with open(CONFIG_FILE, "r") as f:
+        return json.load(f)
+
+
+def save_config(config):
+    os.makedirs(_XDG_CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=2, sort_keys=True)
+
+
+def get_default_tz():
+    """Returns (iana_zone, label) for the user's configured default
+    timezone, or (None, None) if none is configured yet."""
+    label = load_config().get("default_tz")
+    if label is None:
+        return None, None
+    return TZ_ALIASES.get(label, (None, None))
+
+
+def set_default_tz(label):
+    config = load_config()
+    config["default_tz"] = label
+    save_config(config)
 
 
 def new_id(data):
@@ -331,10 +402,70 @@ def parse_interview_time_token(time_tokens):
 
 
 def resolve_tz_token(token):
-    """Returns (iana_zone, display_label), or (None, None) if `token` doesn't
-    match a known alias. A missing token defaults to CT."""
-    key = (token or DEFAULT_TZ_ALIAS).upper()
-    return TZ_ALIASES.get(key, (None, None))
+    """Returns (iana_zone, display_label) for an explicit alias token
+    (case-insensitive), or (None, None) if it doesn't match a known alias.
+    A `token` of None always returns (None, None) here -- resolving a
+    missing token to the user's configured default is
+    resolve_or_prompt_default_tz's job, since that may require prompting."""
+    if token is None:
+        return None, None
+    return TZ_ALIASES.get(token.upper(), (None, None))
+
+
+def resolve_or_prompt_default_tz():
+    """Returns (iana_zone, label) for the user's configured default
+    timezone. If none is configured yet, interactively prompts for one
+    (persisting the answer via set_default_tz for next time) when stdin is
+    a TTY -- a single-shot attempt, mirroring confirm_meridiem's AM/PM
+    disambiguation: a blank/EOF/unrecognized answer cancels rather than
+    retrying. When stdin isn't a TTY (piped/scripted) and nothing is
+    configured, prints an error instead of silently guessing a zone.
+    Either failure path returns (None, None), the same "can't resolve"
+    shape an unrecognized explicit token gets from resolve_tz_token, so
+    callers can treat both identically."""
+    iana_zone, label = get_default_tz()
+    if label is not None:
+        return iana_zone, label
+
+    if not sys.stdin.isatty():
+        print("No default timezone is configured yet. Set one with `job config tz <ZONE>` "
+              "(supported: CT, ET, MT, PT, UTC, also CST/CDT, EST/EDT, MST/MDT, PST/PDT, "
+              "CENTRAL/EASTERN/MOUNTAIN/PACIFIC, GMT).")
+        return None, None
+
+    try:
+        answer = input("You haven't set a default timezone yet. Enter one "
+                        "(CT/ET/MT/PT/UTC, or a synonym): ").strip()
+    except EOFError:
+        answer = ""
+    if not answer:
+        print("Cancelled.")
+        return None, None
+
+    iana_zone, label = resolve_tz_token(answer)
+    if iana_zone is None:
+        print(unknown_tz_message(answer))
+        return None, None
+
+    set_default_tz(label)
+    print(f"Default timezone set to {label}.")
+    return iana_zone, label
+
+
+def normalize_interview_tz(aware_dt):
+    """Converts aware_dt to the user's configured default timezone,
+    preserving the same instant -- prompting for a default first if none is
+    configured yet (see resolve_or_prompt_default_tz). Every stored
+    interview goes through this so a return set is never a mix of zones
+    regardless of what zone it was entered in. Returns None if a default
+    couldn't be resolved (prompt declined/EOF/unrecognized, or a
+    non-interactive invocation with nothing configured) -- the caller's
+    write is expected to abort in that case, same as any other unresolvable
+    timezone."""
+    default_iana, default_label = resolve_or_prompt_default_tz()
+    if default_label is None:
+        return None
+    return aware_dt.astimezone(ZoneInfo(default_iana)), default_label
 
 
 def unknown_tz_message(token):
@@ -405,9 +536,13 @@ def parse_interview_datetime(tokens):
         if answer == "pm":
             hour += 12
 
-    iana_zone, tz_label = resolve_tz_token(tz_token)
+    if tz_token is None:
+        iana_zone, tz_label = resolve_or_prompt_default_tz()
+    else:
+        iana_zone, tz_label = resolve_tz_token(tz_token)
     if iana_zone is None:
-        print(unknown_tz_message(tz_token))
+        if tz_token is not None:
+            print(unknown_tz_message(tz_token))
         return None
 
     aware_dt = datetime.combine(interview_date, time(hour, minute), tzinfo=ZoneInfo(iana_zone))
@@ -441,6 +576,7 @@ def print_record(rec, display_tz=None):
     print(f"Interview: {format_interview_display(rec, display_tz=display_tz)}")
     print(f"Status: {rec['status']}")
     print(f"Status changed: {rec['status_changed']}")
+    print(f"Note: {rec.get('note') or '—'}")
 
 
 def cmd_lookup(data, company, show_all=False, display_tz=None):
@@ -483,6 +619,7 @@ def cmd_create(data, company, title, status=None):
         "interview_tz": None,
         "status": status if status is not None else "sent app",
         "status_changed": today,
+        "note": None,
         "deleted": False,
         "deleted_at": None,
     }
@@ -501,6 +638,26 @@ def cmd_status(data, company, new_status, display_tz=None):
     save_data(data)
     print(f"Updated {data[key]['company']}:")
     print_record(data[key], display_tz=display_tz)
+
+
+def cmd_note(data, company, text, display_tz=None):
+    key = resolve_active(data, company)
+    if key is None:
+        print("no applications sent")
+        return
+    rec = data[key]
+    if text.lower() == "clear":
+        if rec.get("note") is None:
+            print(f"{rec['company']} has no note set.")
+            return
+        rec["note"] = None
+        save_data(data)
+        print(f"Cleared {rec['company']}'s note.")
+        return
+    rec["note"] = text
+    save_data(data)
+    print(f"Updated {rec['company']}'s note:")
+    print_record(rec, display_tz=display_tz)
 
 
 def cmd_delete(data, company, hard=False, display_tz=None):
@@ -615,21 +772,69 @@ def cmd_interview_cancel(data, key):
 
 def cmd_interview_set(data, key, aware_dt, tz_label):
     rec = data[key]
-    new_display = format_interview_dt(aware_dt, tz_label)
+    result = normalize_interview_tz(aware_dt)
+    if result is None:
+        return
+    normalized_dt, normalized_label = result
+    new_display = format_interview_dt(normalized_dt, normalized_label)
     if rec.get("interview") is not None:
         prompt = (f"{rec['company']}'s interview is currently {format_interview_display(rec)}. "
-                  f"Set it to {new_display} ({aware_dt.tzinfo.key})?")
+                  f"Set it to {new_display} ({normalized_dt.tzinfo.key})?")
     else:
-        prompt = f"Set {rec['company']}'s interview to {new_display} ({aware_dt.tzinfo.key})?"
+        prompt = f"Set {rec['company']}'s interview to {new_display} ({normalized_dt.tzinfo.key})?"
+    if tz_label != normalized_label:
+        entered_display = format_interview_dt(aware_dt, tz_label)
+        prompt = (f"You entered {entered_display} ({aware_dt.tzinfo.key}) — this converts to "
+                  f"{new_display} ({normalized_dt.tzinfo.key}). " + prompt)
     if not confirm(prompt):
         print("Cancelled.")
         return
-    rec["interview"] = aware_dt.isoformat()
-    rec["interview_tz"] = tz_label
+    rec["interview"] = normalized_dt.isoformat()
+    rec["interview_tz"] = normalized_label
     rec["status_changed"] = date.today().isoformat()
     save_data(data)
     print(f"Updated {rec['company']}'s interview:")
     print_record(rec)
+
+
+def cmd_config_tz_show():
+    _, label = get_default_tz()
+    if label is None:
+        print("Default timezone: not set yet. Set one with `job config tz <ZONE>`.")
+    else:
+        print(f"Default timezone: {label}")
+
+
+def cmd_config_tz_set(data, token):
+    iana_zone, label = resolve_tz_token(token)
+    if iana_zone is None:
+        print(unknown_tz_message(token))
+        return
+
+    old_iana, old_label = get_default_tz()
+    if old_label == label:
+        print(f"Default timezone is already {label}.")
+        return
+
+    count = sum(1 for rec in data.values() if rec.get("interview") is not None)
+    if old_label is None:
+        prompt = f"Set default timezone to {label}?"
+    else:
+        prompt = f"Change default timezone from {old_label} to {label}?"
+    if count:
+        prompt += f" This will convert {count} stored interview(s) to {label}."
+
+    if not confirm(prompt):
+        print("Cancelled.")
+        return
+
+    set_default_tz(label)
+    if count:
+        data = backfill_interview_tz(data)
+        save_data(data)
+        print(f"Default timezone set to {label}. Converted {count} interview(s).")
+    else:
+        print(f"Default timezone set to {label}.")
 
 
 def classify_interview_color(rec):
@@ -674,14 +879,14 @@ def build_table_lines(records, show_deleted=False, display_tz=None):
     active-only already. `display_tz`, if given, converts every row's
     Interview cell into that zone for display only — row selection and
     classify_interview_color's highlighting are untouched."""
-    headers = ["Company", "Title", "Applied", "Interview", "Status Changed", "Status"]
+    headers = ["Company", "Title", "Applied", "Interview", "Status Changed", "Status", "Note"]
     if show_deleted:
         headers = headers + ["Deleted"]
     rows = []
     for r in records:
         row = [r["company"], r["title"], r["applied"],
                format_interview_display(r, display_tz=display_tz),
-               r["status_changed"], r["status"]]
+               r["status_changed"], r["status"], r.get("note") or "—"]
         if show_deleted:
             row.append(r.get("deleted_at") or "—")
         rows.append(row)
@@ -1002,6 +1207,8 @@ def print_usage():
     print("  job <company> <title>                             Create a new application record")
     print("  job <company> <title> <status>                    Create a new record with a custom initial status")
     print("  job <company> status <new_status>                 Update the status of a record")
+    print("  job <company> note <text>                         Set or edit a record's note")
+    print("  job <company> note clear                          Clear a record's note")
     print("  job <company> interview <date> <time> [<tz>|tz <tz>]  Set or update the interview date/time")
     print("  job <company> interview cancel                    Clear a scheduled interview")
     print("  job <company> delete                              Soft-delete a record: hidden from result sets, kept for history (asks to confirm)")
@@ -1011,6 +1218,8 @@ def print_usage():
     print("  job search <keyword> [--all] [tz <ZONE>] [sort <field> [asc|desc]]  Search company, title, or status (fuzzy); --all includes soft-deleted")
     print("  job interviews [--all] [tz <ZONE>]                Show interviews starting in the future or within the last 30 min, sorted by interview date (desc); --all also includes past interviews and soft-deleted records")
     print("  job today [--all] [tz <ZONE>]                     Show records applied, status-changed, or interviewing today; --all also includes soft-deleted today")
+    print("  job config tz <ZONE>                              Set your default timezone (converts stored interviews to match)")
+    print("  job config tz                                     Show your currently configured default timezone")
     print("  job help                                          Show this help text")
     print("  job --company <name> ...                          Force <name> to be treated as a company, even if it")
     print("                                                     matches a keyword like `list`, `today`, or `search`")
@@ -1022,8 +1231,13 @@ def print_usage():
     print("no active record left, `--hard` targets soft-deleted history instead (prompting you to pick")
     print("which one, or all of them, if a company has more than one soft-deleted record).")
     print()
-    print("Quote company names, titles, and statuses that contain spaces, e.g.:")
+    print("Quote company names, titles, statuses, and notes that contain spaces, e.g.:")
     print('  job "Big Corp" "Data Engineer" "Recruiter reached out"')
+    print('  job "Big Corp" note "Referred by a friend on the team"')
+    print()
+    print("A note is freeform text shown alongside every record wherever it's returned (lookup,")
+    print("list, search, interviews, today). It's null until set, has no history of past edits or")
+    print("when it last changed, and is cleared with `job <company> note clear`.")
     print()
     print("If a company name collides with a built-in keyword, use --company, e.g.:")
     print('  job --company list "Data Engineer"                looks up/creates company "list"')
@@ -1032,9 +1246,13 @@ def print_usage():
     print('  job "Big Corp" interview 2026-07-13 13:00 CT')
     print('  job CompanyName interview 1/1/2027 9pm ET')
     print('  job "Big Corp" interview 2026-07-13 13:00 tz CT')
-    print("Defaults to Central time (CT) if no timezone is given; always confirms before saving.")
+    print("Defaults to your configured default timezone if no timezone is given (prompting you to set")
+    print("one the first time it's needed); always confirms before saving.")
     print()
-    print("Add `tz <ZONE>` to a lookup, list, search, interviews, today, status, or delete command to")
+    print("Set or change your default timezone at any time with `job config tz <ZONE>` (CT/ET/MT/PT/UTC")
+    print("+ synonyms) — this converts every stored interview to the new zone. Check it with `job config tz`.")
+    print()
+    print("Add `tz <ZONE>` to a lookup, list, search, interviews, today, status, note, or delete command to")
     print("view its Interview time converted to a different zone (CT/ET/MT/PT + synonyms, same as above)")
     print("without changing how or where it's stored, e.g.:")
     print("  job list tz PT")
@@ -1110,14 +1328,14 @@ def strip_trailing_tz(rest):
     """If `rest` ends with a literal `tz <ZONE>` pair (case-insensitive) AND
     the tokens preceding it form one of the shapes that supports a
     display-tz override -- empty (plain lookup), [`--all`], [`status`,
-    <value>], [`delete`], or [`delete`, `--hard`] -- returns (remaining,
-    tz_token). Otherwise returns (rest, None) unchanged, leaving `tz`
-    fully available as ordinary title/status text everywhere else
-    (notably the 1- and 2-arg `create` shapes). Deliberately more
-    conservative than scan_display_flags: dispatch_company's remaining
-    tokens can be arbitrary free-form user text (a status value) that a
-    free-order scanner can't safely tell apart from a literal `tz` flag
-    token."""
+    <value>], [`note`, <value>], [`delete`], or [`delete`, `--hard`] --
+    returns (remaining, tz_token). Otherwise returns (rest, None)
+    unchanged, leaving `tz` fully available as ordinary title/status/note
+    text everywhere else (notably the 1- and 2-arg `create` shapes).
+    Deliberately more conservative than scan_display_flags:
+    dispatch_company's remaining tokens can be arbitrary free-form user
+    text (a status or note value) that a free-order scanner can't safely
+    tell apart from a literal `tz` flag token."""
     if len(rest) < 2 or rest[-2].lower() != "tz":
         return rest, None
     remaining, tz_token = rest[:-2], rest[-1]
@@ -1128,7 +1346,7 @@ def strip_trailing_tz(rest):
         return remaining, tz_token
     if n == 2 and remaining[0].lower() == "delete" and remaining[1].lower() == "--hard":
         return remaining, tz_token
-    if n == 2 and remaining[0].lower() == "status":
+    if n == 2 and remaining[0].lower() in ("status", "note"):
         return remaining, tz_token
     return rest, None
 
@@ -1160,6 +1378,10 @@ def dispatch_company(data, company, rest):
             cmd_lookup(data, company, show_all=True, display_tz=display_tz)
         elif second.lower() == "status":
             print("Missing new status value. Usage: job <company> status <new_status>")
+        elif second.lower() == "note":
+            print("Missing note value. Usage:")
+            print("  job <company> note <text>")
+            print("  job <company> note clear")
         else:
             cmd_create(data, company, second)
         return
@@ -1168,6 +1390,9 @@ def dispatch_company(data, company, rest):
         second, third = rest
         if second.lower() == "status":
             cmd_status(data, company, third, display_tz=display_tz)
+            return
+        if second.lower() == "note":
+            cmd_note(data, company, third, display_tz=display_tz)
             return
         if second.lower() == "delete":
             if third.lower() == "--hard":
@@ -1213,6 +1438,23 @@ def main():
         print("`interview` must follow a company name. Usage:")
         print("  job <company> interview <date> <time> [<tz>|tz <tz>]")
         print("  job <company> interview cancel")
+        return
+
+    if args[0].lower() == "config":
+        if len(args) == 1:
+            print("Usage: job config tz <ZONE>")
+            print("       job config tz              (show the current default)")
+            return
+        if args[1].lower() != "tz":
+            print(f"Unknown `config` subcommand '{args[1]}'. Usage: job config tz <ZONE>")
+            return
+        if len(args) == 2:
+            cmd_config_tz_show()
+            return
+        if len(args) == 3:
+            cmd_config_tz_set(data, args[2])
+            return
+        print("Too many arguments. Usage: job config tz <ZONE>")
         return
 
     if args[0].lower() == "list":

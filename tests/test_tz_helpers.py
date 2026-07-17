@@ -3,8 +3,11 @@ import pytest
 import job
 
 
-def test_resolve_tz_token_defaults_to_ct_when_none():
-    assert job.resolve_tz_token(None) == ("America/Chicago", "CT")
+def test_resolve_tz_token_none_returns_none_pair():
+    # Resolving a missing token to the user's configured default is
+    # resolve_or_prompt_default_tz's job, not resolve_tz_token's -- see
+    # test_config.py.
+    assert job.resolve_tz_token(None) == (None, None)
 
 
 @pytest.mark.parametrize("token, expected", [

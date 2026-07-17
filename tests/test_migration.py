@@ -105,6 +105,85 @@ def test_save_data_creates_data_dir_and_round_trips():
     assert on_disk == {rec["id"]: rec}
 
 
+def interview_record(company="Big Corp", interview="2026-07-17T11:00:00-04:00", interview_tz="ET"):
+    rec = new_record(company)
+    rec["interview"] = interview
+    rec["interview_tz"] = interview_tz
+    return rec
+
+
+def test_needs_tz_backfill_false_when_no_interview_or_already_ct():
+    assert job.needs_tz_backfill({"abc12345": new_record()}) is False
+    ct_rec = interview_record(interview="2026-07-17T10:00:00-05:00", interview_tz="CT")
+    assert job.needs_tz_backfill({"abc12345": ct_rec}) is False
+
+
+def test_needs_tz_backfill_true_for_non_default_tz_record():
+    assert job.needs_tz_backfill({"abc12345": interview_record()}) is True
+
+
+def test_backfill_interview_tz_converts_to_ct():
+    data = job.backfill_interview_tz({"abc12345": interview_record()})
+    rec = data["abc12345"]
+    assert rec["interview"] == "2026-07-17T10:00:00-05:00"
+    assert rec["interview_tz"] == "CT"
+
+
+def test_backfill_interview_tz_is_idempotent():
+    data = job.backfill_interview_tz({"abc12345": interview_record()})
+    assert job.needs_tz_backfill(data) is False
+    again = job.backfill_interview_tz(data)
+    assert again["abc12345"]["interview"] == data["abc12345"]["interview"]
+
+
+def test_backfill_interview_tz_skips_records_with_no_interview():
+    no_interview = new_record("No Interview Co")
+    no_interview["id"] = "11111111"
+    data = job.backfill_interview_tz({
+        "abc12345": interview_record(),
+        "11111111": no_interview,
+    })
+    assert data["11111111"]["interview"] is None
+    assert data["11111111"]["interview_tz"] is None
+    assert data["abc12345"]["interview_tz"] == "CT"
+
+
+def test_load_data_backfills_legacy_non_ct_interview_and_persists():
+    rec = interview_record()
+    job.save_data({rec["id"]: rec})
+    loaded = job.load_data()
+    (out,) = loaded.values()
+    assert out["interview"] == "2026-07-17T10:00:00-05:00"
+    assert out["interview_tz"] == "CT"
+    with open(job.DATA_FILE) as f:
+        on_disk = json.load(f)
+    assert on_disk == loaded
+
+
+def test_load_data_backfill_is_a_noop_on_second_load(monkeypatch):
+    rec = interview_record()
+    job.save_data({rec["id"]: rec})
+    job.load_data()  # first load: normalizes + saves
+    save_calls = []
+    monkeypatch.setattr(job, "save_data", lambda data: save_calls.append(data))
+    job.load_data()  # second load: already CT, nothing to save
+    assert save_calls == []
+
+
+def test_load_data_migrates_and_backfills_legacy_record_in_one_pass():
+    legacy = legacy_record()
+    legacy["interview"] = "2026-07-17T11:00:00-04:00"
+    legacy["interview_tz"] = "ET"
+    data = {"bigcorp": legacy}
+    job.os.makedirs(job.DATA_DIR, exist_ok=True)
+    with open(job.DATA_FILE, "w") as f:
+        json.dump(data, f)
+    (rec,) = job.load_data().values()
+    assert rec["deleted"] is False
+    assert rec["interview"] == "2026-07-17T10:00:00-05:00"
+    assert rec["interview_tz"] == "CT"
+
+
 def test_new_id_is_eight_hex_chars_and_unique():
     data = {}
     key = job.new_id(data)
