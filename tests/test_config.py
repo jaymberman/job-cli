@@ -190,7 +190,7 @@ def test_cmd_config_tz_set_unknown_zone_errors_and_leaves_config_unchanged(capsy
 def test_cmd_config_tz_set_same_as_current_is_a_noop_no_confirm(monkeypatch, capsys):
     def explode(prompt):
         raise AssertionError("must not confirm when the value is unchanged")
-    monkeypatch.setattr(job._legacy, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     job._legacy.cmd_config_tz_set({}, "CT")
     assert "Default timezone is already CT." in capsys.readouterr().out
 
@@ -198,7 +198,7 @@ def test_cmd_config_tz_set_same_as_current_is_a_noop_no_confirm(monkeypatch, cap
 def test_cmd_config_tz_set_first_time_no_interviews(clear_default_tz, monkeypatch, capsys):
     clear_default_tz()
     prompts = []
-    monkeypatch.setattr(job._legacy, "confirm", lambda prompt: prompts.append(prompt) or True)
+    monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
     job._legacy.cmd_config_tz_set({}, "PT")
     assert prompts == ["Set default timezone to PT?"]
     out = capsys.readouterr().out
@@ -209,7 +209,7 @@ def test_cmd_config_tz_set_first_time_no_interviews(clear_default_tz, monkeypatc
 
 def test_cmd_config_tz_set_changes_existing_default_no_interviews(monkeypatch, capsys):
     prompts = []
-    monkeypatch.setattr(job._legacy, "confirm", lambda prompt: prompts.append(prompt) or True)
+    monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
     job._legacy.cmd_config_tz_set({}, "ET")
     assert prompts == ["Change default timezone from CT to ET?"]
     out = capsys.readouterr().out
@@ -219,7 +219,7 @@ def test_cmd_config_tz_set_changes_existing_default_no_interviews(monkeypatch, c
 
 def test_cmd_config_tz_set_converts_stored_interviews(monkeypatch, capsys):
     prompts = []
-    monkeypatch.setattr(job._legacy, "confirm", lambda prompt: prompts.append(prompt) or True)
+    monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
     rec = interview_record(interview="2026-07-17T10:00:00-05:00", interview_tz="CT")
     data = {rec["id"]: rec}
 

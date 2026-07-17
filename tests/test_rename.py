@@ -36,7 +36,7 @@ def test_rename_needs_no_confirmation_when_no_collision(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("a no-collision rename should never call confirm()")
-    monkeypatch.setattr(job._legacy, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     out = run_cli("Big Corp", "--rename", "Vantage Systems")
     assert "Renamed Big Corp to Vantage Systems." in out
 
@@ -150,7 +150,7 @@ def test_rename_declined_only_collision_prompt_wording(run_cli, stub_confirm, mo
     def capture(prompt):
         seen["prompt"] = prompt
         return True
-    monkeypatch.setattr(job._legacy, "confirm", capture)
+    monkeypatch.setattr(job.company, "confirm", capture)
     run_cli("Big Corp", "--rename", "Vantage Systems")
     assert seen["prompt"] == "already applied to Vantage Systems (declined). Do you want to proceed with the rename?"
 
@@ -183,7 +183,7 @@ def test_self_rename_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("a self-rename should never call confirm()")
-    monkeypatch.setattr(job._legacy, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     run_cli("bigcorp", "--rename", "Big Corp")
 
 

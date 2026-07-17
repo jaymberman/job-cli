@@ -210,8 +210,8 @@ def test_active_and_deleted_records_split_pool():
     deleted["deleted"] = True
     data = {active["id"]: active, deleted["id"]: deleted}
 
-    assert job._legacy.active_records(data) == {active["id"]: active}
-    assert job._legacy.deleted_records(data) == {deleted["id"]: deleted}
+    assert job.company.active_records(data) == {active["id"]: active}
+    assert job.company.deleted_records(data) == {deleted["id"]: deleted}
 
 
 def test_company_records_matches_by_normalized_company():
@@ -223,5 +223,5 @@ def test_company_records_matches_by_normalized_company():
     other["id"] = "33333333"
     pool = {r["id"]: r for r in (rec1, rec2, other)}
 
-    matches = job._legacy.company_records(pool, job._legacy.normalize("Big Corp"))
+    matches = job.company.company_records(pool, job.company.normalize("Big Corp"))
     assert {r["id"] for r in matches} == {"11111111", "22222222"}

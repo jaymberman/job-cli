@@ -1,4 +1,3 @@
-import difflib
 import os
 import re
 import select
@@ -10,13 +9,10 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from . import storage
+from . import company as company_mod
 
 # Documentation-only: illustrative, not enforced via membership checks anywhere.
 RESERVED = {"list", "status", "delete", "search", "sort", "help", "interview", "interviews", "today", "tz", "config", "note", "favorites"}
-AUTO_THRESHOLD = 0.80
-CONFIRM_THRESHOLD = 0.55
-AUTO_MARGIN = 0.12
-
 SORT_FIELDS = {
     "company": "company",
     "title": "title",
@@ -55,103 +51,6 @@ ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 SLASH_DATE_RE = re.compile(r"^(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?$")
 TIME_RE = re.compile(r"^(\d{1,2})(?::(\d{2}))?([AaPp][Mm])?$")
 MERIDIEM_RE = re.compile(r"^[AaPp][Mm]$")
-
-
-def normalize(name):
-    return re.sub(r"[^a-z0-9]", "", name.strip().lower())
-
-
-def active_records(data):
-    return {k: v for k, v in data.items() if not v.get("deleted", False)}
-
-
-def deleted_records(data):
-    return {k: v for k, v in data.items() if v.get("deleted", False)}
-
-
-def company_records(pool, norm_key):
-    return [rec for rec in pool.values() if normalize(rec["company"]) == norm_key]
-
-
-def score(a, b):
-    if a == b:
-        return 1.0
-    if a and b and (a in b or b in a):
-        shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
-        containment = 0.75 + 0.25 * (len(shorter) / len(longer))
-        return max(containment, difflib.SequenceMatcher(None, a, b).ratio())
-    return difflib.SequenceMatcher(None, a, b).ratio()
-
-
-def confirm(prompt):
-    try:
-        answer = input(f"{prompt} [y/N] ").strip().lower()
-    except EOFError:
-        return False
-    return answer in ("y", "yes")
-
-
-def resolve_company_key(pool, query, data=None):
-    """Find the normalized company name (fuzzily, if needed) among the
-    records in `pool` (an id-keyed dict) matching `query`. Returns the
-    normalized company string, or None if there's no match (or the user
-    declines a fuzzy guess). Matches against distinct normalized company
-    names rather than individual records, since `pool` may legitimately
-    contain several records (e.g. declined history) sharing one company.
-
-    If `data` (the full, unfiltered dataset) is given and `query` exactly
-    matches some company that exists in `data` but happens to fall outside
-    `pool` (e.g. a soft-deleted company being looked up in the active-only
-    pool), resolution stops there instead of falling through to a fuzzy
-    guess against some unrelated company that *is* in `pool` — a company
-    name typed exactly right should never be reinterpreted as a typo of
-    something else just because it isn't in this particular pool."""
-    norm = normalize(query)
-
-    distinct = {}
-    for rec in pool.values():
-        key = normalize(rec["company"])
-        if key not in distinct or rec["applied"] > distinct[key][1]:
-            distinct[key] = (rec["company"], rec["applied"])
-    if norm in distinct:
-        return norm
-
-    if data is not None and any(normalize(rec["company"]) == norm for rec in data.values()):
-        return None
-    if not distinct:
-        return None
-
-    scored = sorted(
-        ((key, score(norm, key)) for key in distinct),
-        key=lambda pair: pair[1],
-        reverse=True,
-    )
-    top_key, top_score = scored[0]
-    second_score = scored[1][1] if len(scored) > 1 else 0.0
-
-    if top_score >= AUTO_THRESHOLD and (top_score - second_score) >= AUTO_MARGIN:
-        return top_key
-    if top_score >= CONFIRM_THRESHOLD:
-        display = distinct[top_key][0]
-        if confirm(f"Did you mean '{display}'?"):
-            return top_key
-        return None
-    return None
-
-
-def resolve_active(data, query):
-    """Fuzzy-resolves `query` to the id of the single active (non-deleted)
-    record for that company, or None. Since at most one active record can
-    exist per company, this is the resolution used everywhere a command
-    targets "the" record for a company: lookup, status, delete, interview."""
-    pool = active_records(data)
-    norm_key = resolve_company_key(pool, query, data=data)
-    if norm_key is None:
-        return None
-    for key, rec in pool.items():
-        if normalize(rec["company"]) == norm_key:
-            return key
-    return None
 
 
 def split_interview_tokens(tokens):
@@ -443,31 +342,31 @@ def print_record(rec, display_tz=None):
 
 
 def cmd_lookup(data, company, show_all=False, display_tz=None):
-    pool = data if show_all else active_records(data)
-    norm_key = resolve_company_key(pool, company, data=data)
+    pool = data if show_all else company_mod.active_records(data)
+    norm_key = company_mod.resolve_company_key(pool, company, data=data)
     if norm_key is None:
         print("no applications sent")
         return
-    records = company_records(pool, norm_key)
+    records = company_mod.company_records(pool, norm_key)
     if show_all:
         records.sort(key=lambda r: r["applied"], reverse=True)
     print_table(records, show_deleted=show_all, display_tz=display_tz)
 
 
 def cmd_create(data, company, title, status=None):
-    active_key = resolve_active(data, company)
+    active_key = company_mod.resolve_active(data, company)
     if active_key is not None:
         print(f"{data[active_key]['company']} already has a record:")
         print_record(data[active_key])
         print("Use `status` to update it or `delete` to remove it first.")
         return
 
-    declined_pool = deleted_records(data)
-    declined_key = resolve_company_key(declined_pool, company, data=data)
+    declined_pool = company_mod.deleted_records(data)
+    declined_key = company_mod.resolve_company_key(declined_pool, company, data=data)
     if declined_key is not None:
-        display = company_records(declined_pool, declined_key)[0]["company"]
+        display = company_mod.company_records(declined_pool, declined_key)[0]["company"]
         prompt = f"already applied to {display} (declined). Do you want to proceed with a new record?"
-        if not confirm(prompt):
+        if not company_mod.confirm(prompt):
             print("Cancelled.")
             return
 
@@ -493,7 +392,7 @@ def cmd_create(data, company, title, status=None):
 
 
 def cmd_status(data, company, new_status, display_tz=None):
-    key = resolve_active(data, company)
+    key = company_mod.resolve_active(data, company)
     if key is None:
         print("no applications sent")
         return
@@ -505,7 +404,7 @@ def cmd_status(data, company, new_status, display_tz=None):
 
 
 def cmd_note(data, company, text, display_tz=None):
-    key = resolve_active(data, company)
+    key = company_mod.resolve_active(data, company)
     if key is None:
         print("no applications sent")
         return
@@ -529,7 +428,7 @@ def cmd_favorite(data, company, favorite=True):
     immediately, no confirmation -- mirrors status/note rather than delete.
     Idempotent with no special no-op messaging: re-favoriting an already-
     favorited record (or vice versa) just prints the same message again."""
-    key = resolve_active(data, company)
+    key = company_mod.resolve_active(data, company)
     if key is None:
         print("no applications sent")
         return
@@ -555,33 +454,33 @@ def cmd_rename(data, company, new_name):
     A rename that resolves back to the same company (e.g. just fixing casing/
     spacing) skips both collision checks entirely. Never touches
     status_changed -- this is an identity edit, not a status transition."""
-    key = resolve_active(data, company)
+    key = company_mod.resolve_active(data, company)
     if key is None:
         print("no applications sent")
         return
     rec = data[key]
     old_display = rec["company"]
-    old_norm = normalize(old_display)
-    new_norm = normalize(new_name)
+    old_norm = company_mod.normalize(old_display)
+    new_norm = company_mod.normalize(new_name)
 
     if new_norm != old_norm:
-        active_key = resolve_active(data, new_name)
+        active_key = company_mod.resolve_active(data, new_name)
         if active_key is not None and active_key != key:
             print(f"{data[active_key]['company']} already has a record:")
             print_record(data[active_key])
             print("Use `status` to update it or `delete` to remove it first.")
             return
 
-        declined_pool = deleted_records(data)
-        declined_key = resolve_company_key(declined_pool, new_name, data=data)
+        declined_pool = company_mod.deleted_records(data)
+        declined_key = company_mod.resolve_company_key(declined_pool, new_name, data=data)
         if declined_key is not None:
-            display = company_records(declined_pool, declined_key)[0]["company"]
+            display = company_mod.company_records(declined_pool, declined_key)[0]["company"]
             prompt = f"already applied to {display} (declined). Do you want to proceed with the rename?"
-            if not confirm(prompt):
+            if not company_mod.confirm(prompt):
                 print("Cancelled.")
                 return
 
-    affected = [r for r in data.values() if normalize(r["company"]) == old_norm]
+    affected = [r for r in data.values() if company_mod.normalize(r["company"]) == old_norm]
     for r in affected:
         r["company"] = new_name
     storage.save_data(data)
@@ -594,14 +493,14 @@ def cmd_rename(data, company, new_name):
 
 
 def cmd_delete(data, company, hard=False, display_tz=None):
-    key = resolve_active(data, company)
+    key = company_mod.resolve_active(data, company)
     if key is not None:
         rec = data[key]
         print("About to delete:")
         print_record(rec, display_tz=display_tz)
         prompt = ("This will PERMANENTLY delete this record. This cannot be undone. Are you sure?"
                   if hard else "Are you sure?")
-        if not confirm(prompt):
+        if not company_mod.confirm(prompt):
             print("Cancelled.")
             return
         if hard:
@@ -623,12 +522,12 @@ def cmd_delete(data, company, hard=False, display_tz=None):
 
     # No active record: a hard delete can still reach into soft-deleted
     # history, since that's the only place left a matching record could be.
-    declined_pool = deleted_records(data)
-    norm_key = resolve_company_key(declined_pool, company, data=data)
+    declined_pool = company_mod.deleted_records(data)
+    norm_key = company_mod.resolve_company_key(declined_pool, company, data=data)
     if norm_key is None:
         print("no applications sent")
         return
-    candidates = company_records(declined_pool, norm_key)
+    candidates = company_mod.company_records(declined_pool, norm_key)
     candidates.sort(key=lambda r: r["applied"], reverse=True)
 
     if len(candidates) == 1:
@@ -648,7 +547,7 @@ def cmd_delete(data, company, hard=False, display_tz=None):
     if answer == "all":
         prompt = (f"This will PERMANENTLY delete all {len(candidates)} soft-deleted records "
                   f"for {display}. This cannot be undone. Are you sure?")
-        if not confirm(prompt):
+        if not company_mod.confirm(prompt):
             print("Cancelled.")
             return
         for rec in candidates:
@@ -667,7 +566,7 @@ def cmd_delete(data, company, hard=False, display_tz=None):
 def cmd_delete_hard_one(data, rec, display_tz=None):
     print("About to delete:")
     print_record(rec, display_tz=display_tz)
-    if not confirm("This will PERMANENTLY delete this record. This cannot be undone. Are you sure?"):
+    if not company_mod.confirm("This will PERMANENTLY delete this record. This cannot be undone. Are you sure?"):
         print("Cancelled.")
         return
     del data[rec["id"]]
@@ -676,7 +575,7 @@ def cmd_delete_hard_one(data, rec, display_tz=None):
 
 
 def cmd_interview(data, company, tokens):
-    key = resolve_active(data, company)
+    key = company_mod.resolve_active(data, company)
     if key is None:
         print("no applications sent")
         return
@@ -720,7 +619,7 @@ def cmd_interview_set(data, key, aware_dt, tz_label):
         entered_display = format_interview_dt(aware_dt, tz_label)
         prompt = (f"You entered {entered_display} ({aware_dt.tzinfo.key}) — this converts to "
                   f"{new_display} ({normalized_dt.tzinfo.key}). " + prompt)
-    if not confirm(prompt):
+    if not company_mod.confirm(prompt):
         print("Cancelled.")
         return
     rec["interview"] = normalized_dt.isoformat()
@@ -758,7 +657,7 @@ def cmd_config_tz_set(data, token):
     if count:
         prompt += f" This will convert {count} stored interview(s) to {label}."
 
-    if not confirm(prompt):
+    if not company_mod.confirm(prompt):
         print("Cancelled.")
         return
 
@@ -966,7 +865,7 @@ def scroll_table_interactive(lines, column_starts, total_width, term_width, term
 
 
 def render_sorted(data, key, reverse=False, show_all=False, display_tz=None):
-    pool = data if show_all else active_records(data)
+    pool = data if show_all else company_mod.active_records(data)
     if not pool:
         print("no applications tracked yet")
         return
@@ -1060,34 +959,34 @@ def cmd_list(data, sort_key="company", reverse=False, show_all=False, display_tz
 
 
 def cmd_search(data, keyword, sort_key=None, reverse=None, show_all=False, display_tz=None):
-    pool = data if show_all else active_records(data)
+    pool = data if show_all else company_mod.active_records(data)
     if not pool:
         print("no applications tracked yet")
         return
-    norm = normalize(keyword)
+    norm = company_mod.normalize(keyword)
     fields = ("company", "title", "status")
     best = {
-        f: max((score(norm, normalize(r[f])) for r in pool.values()), default=0.0)
+        f: max((company_mod.score(norm, company_mod.normalize(r[f])) for r in pool.values()), default=0.0)
         for f in fields
     }
     field = max(fields, key=lambda f: best[f])
 
     if field == "company":
-        norm_key = resolve_company_key(pool, keyword, data=data)
+        norm_key = company_mod.resolve_company_key(pool, keyword, data=data)
         if norm_key is None:
             print("no matching applications found")
             return
-        matches = company_records(pool, norm_key)
+        matches = company_mod.company_records(pool, norm_key)
         if show_all:
             matches.sort(key=lambda r: r["applied"], reverse=True)
         print_table(matches, show_deleted=show_all, display_tz=display_tz)
         return
 
-    if best[field] < AUTO_THRESHOLD:
+    if best[field] < company_mod.AUTO_THRESHOLD:
         print("no matching applications found")
         return
     matches = [
-        r for r in pool.values() if score(norm, normalize(r[field])) >= AUTO_THRESHOLD
+        r for r in pool.values() if company_mod.score(norm, company_mod.normalize(r[field])) >= company_mod.AUTO_THRESHOLD
     ]
     key = sort_key if sort_key is not None else "status_changed"
     rev = True if reverse is None else reverse
@@ -1101,7 +1000,7 @@ def cmd_interviews(data, show_all=False, display_tz=None):
     — i.e. starting in the future, or within the last 30 minutes. --all:
     every interview regardless of date, plus soft-deleted records, shown
     with the extra Deleted column."""
-    pool = data if show_all else active_records(data)
+    pool = data if show_all else company_mod.active_records(data)
     matches = [r for r in pool.values() if r.get("interview") is not None]
     if not show_all:
         matches = [r for r in matches if classify_interview_color(r) != "past"]
@@ -1117,7 +1016,7 @@ def cmd_today(data, show_all=False, display_tz=None):
     interview scheduled for today's calendar date (regardless of whether
     that interview's time has already passed today or is still upcoming),
     or — when show_all is set — soft-deleted today."""
-    pool = data if show_all else active_records(data)
+    pool = data if show_all else company_mod.active_records(data)
     today = date.today()
     today_iso = today.isoformat()
     matches = [
@@ -1139,7 +1038,7 @@ def cmd_favorites(data):
     -- a fixed order, no sort modifier, mirroring interviews/today rather
     than list/search. No --all: a soft-deleted record can never be
     favorited (delete clears the flag), so there's nothing extra to show."""
-    matches = [r for r in active_records(data).values() if r.get("is_favorite", False)]
+    matches = [r for r in company_mod.active_records(data).values() if r.get("is_favorite", False)]
     if not matches:
         print("no favorites yet")
         return

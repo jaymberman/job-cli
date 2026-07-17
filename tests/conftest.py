@@ -77,11 +77,11 @@ def freeze_now(monkeypatch):
 
 @pytest.fixture
 def stub_confirm(monkeypatch):
-    """stub_confirm(True) or stub_confirm(False) makes every job._legacy.confirm()
+    """stub_confirm(True) or stub_confirm(False) makes every job.company.confirm()
     call resolve without touching input(); use answer_input instead for
     tests specifically about the y/n prompt-parsing logic itself."""
     def _set(value=True):
-        monkeypatch.setattr(job._legacy, "confirm", lambda prompt: value)
+        monkeypatch.setattr(job.company, "confirm", lambda prompt: value)
     return _set
 
 

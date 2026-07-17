@@ -60,7 +60,7 @@ def test_note_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("note should never call confirm()")
-    monkeypatch.setattr(job._legacy, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     out = run_cli("Big Corp", "note", "Some note")
     assert "Updated Big Corp's note:" in out
 

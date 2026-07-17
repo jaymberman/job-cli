@@ -3,31 +3,31 @@ import job
 
 def test_confirm_accepts_y(answer_input):
     answer_input("y")
-    assert job._legacy.confirm("Are you sure?") is True
+    assert job.company.confirm("Are you sure?") is True
 
 
 def test_confirm_accepts_yes_case_insensitive(answer_input):
     answer_input("YES")
-    assert job._legacy.confirm("Are you sure?") is True
+    assert job.company.confirm("Are you sure?") is True
 
 
 def test_confirm_rejects_blank(answer_input):
     answer_input("")
-    assert job._legacy.confirm("Are you sure?") is False
+    assert job.company.confirm("Are you sure?") is False
 
 
 def test_confirm_rejects_n(answer_input):
     answer_input("n")
-    assert job._legacy.confirm("Are you sure?") is False
+    assert job.company.confirm("Are you sure?") is False
 
 
 def test_confirm_rejects_garbage(answer_input):
     answer_input("maybe")
-    assert job._legacy.confirm("Are you sure?") is False
+    assert job.company.confirm("Are you sure?") is False
 
 
 def test_confirm_eof_is_false(eof_input):
-    assert job._legacy.confirm("Are you sure?") is False
+    assert job.company.confirm("Are you sure?") is False
 
 
 def test_confirm_meridiem_am(answer_input):

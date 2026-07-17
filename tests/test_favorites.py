@@ -78,7 +78,7 @@ def test_favorite_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("--favorite should never call confirm()")
-    monkeypatch.setattr(job._legacy, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     out = run_cli("Big Corp", "--favorite")
     assert "Marked Big Corp as a favorite." in out
 
@@ -89,7 +89,7 @@ def test_remove_favorite_needs_no_confirmation(run_cli, monkeypatch):
 
     def explode(prompt):
         raise AssertionError("--remove-favorite should never call confirm()")
-    monkeypatch.setattr(job._legacy, "confirm", explode)
+    monkeypatch.setattr(job.company, "confirm", explode)
     out = run_cli("Big Corp", "--remove-favorite")
     assert "Removed Big Corp from favorites." in out
 
