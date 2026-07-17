@@ -19,13 +19,13 @@ def rec(company, applied="2026-01-01", id_="11111111", deleted=False):
 # ---- resolve_company_key ---------------------------------------------------
 
 def test_exact_normalized_match_short_circuits_without_scoring():
-    pool = {"1": rec("Aretum Consulting")}
-    assert job.resolve_company_key(pool, "aretum consulting") == "aretumconsulting"
+    pool = {"1": rec("foobar Consulting")}
+    assert job.resolve_company_key(pool, "foobar consulting") == "foobarconsulting"
 
 
 def test_exact_match_case_and_spacing_insensitive():
-    pool = {"1": rec("Aretum Consulting")}
-    assert job.resolve_company_key(pool, "ARETUMconsulting") == "aretumconsulting"
+    pool = {"1": rec("foobar Consulting")}
+    assert job.resolve_company_key(pool, "foobarconsulting") == "foobarconsulting"
 
 
 def test_empty_pool_returns_none():
@@ -46,15 +46,15 @@ def test_data_guard_prevents_fuzzy_reinterpretation_across_pools():
 
 
 def test_auto_accepts_confident_single_candidate():
-    pool = {"1": rec("Aretum Consulting")}
-    assert job.resolve_company_key(pool, "aretum") == "aretumconsulting"
+    pool = {"1": rec("foobar Consulting")}
+    assert job.resolve_company_key(pool, "foobar") == "foobarconsulting"
 
 
 def test_auto_accept_never_calls_confirm(monkeypatch):
-    pool = {"1": rec("Aretum Consulting")}
+    pool = {"1": rec("foobar Consulting")}
     monkeypatch.setattr(job, "confirm", lambda prompt: (_ for _ in ()).throw(
         AssertionError("confirm() should not be called on a confident auto-accept")))
-    job.resolve_company_key(pool, "aretum")
+    job.resolve_company_key(pool, "foobar")
 
 
 def test_confirm_threshold_prompts_and_accepts(monkeypatch):

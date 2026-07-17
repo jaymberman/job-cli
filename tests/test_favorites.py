@@ -41,9 +41,9 @@ def test_remove_favorite_is_case_insensitive(run_cli):
 
 
 def test_favorite_fuzzy_match_resolves(run_cli):
-    run_cli("Aretum Consulting", "Data Engineer")
-    out = run_cli("aretum", "--favorite")
-    assert "Marked Aretum Consulting as a favorite." in out
+    run_cli("foobar Consulting", "Data Engineer")
+    out = run_cli("foobar", "--favorite")
+    assert "Marked foobar Consulting as a favorite." in out
 
 
 def test_favorite_defaults_to_false_on_create(run_cli):

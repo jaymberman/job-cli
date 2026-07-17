@@ -48,9 +48,9 @@ def test_rename_is_case_insensitive_flag(run_cli):
 
 
 def test_rename_fuzzy_resolves_old_name(run_cli):
-    run_cli("Aretum Consulting", "Data Engineer")
-    out = run_cli("aretum", "--rename", "Vantage Systems")
-    assert "Renamed Aretum Consulting to Vantage Systems." in out
+    run_cli("foobar Consulting", "Data Engineer")
+    out = run_cli("foobar", "--rename", "Vantage Systems")
+    assert "Renamed foobar Consulting to Vantage Systems." in out
 
 
 def test_rename_preserves_note_favorite_and_interview_fields(run_cli):

@@ -52,9 +52,9 @@ def test_create_duplicate_active_is_hard_error(run_cli):
 
 
 def test_create_duplicate_fuzzy_active_is_hard_error(run_cli):
-    run_cli("Aretum Consulting", "Data Engineer")
-    out = run_cli("aretum", "Data Engineer II")
-    assert "Aretum Consulting already has a record:" in out
+    run_cli("foobar Consulting", "Data Engineer")
+    out = run_cli("foobar", "Data Engineer II")
+    assert "foobar Consulting already has a record:" in out
     assert len(read_data()) == 1
 
 

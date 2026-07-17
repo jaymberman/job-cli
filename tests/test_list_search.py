@@ -137,9 +137,9 @@ def test_list_unknown_sort_order_errors(run_cli):
 # ---- cmd_search / job search ----------------------------------------------
 
 def test_search_company_field_delegates_to_lookup_resolution(run_cli):
-    run_cli("Aretum Consulting", "Data Engineer")
-    out = run_cli("search", "aretum")
-    assert "Aretum Consulting" in out
+    run_cli("foobar Consulting", "Data Engineer")
+    out = run_cli("search", "foobar")
+    assert "foobar Consulting" in out
 
 
 def test_search_title_field_wins_and_applies_auto_threshold(run_cli):

@@ -40,9 +40,9 @@ def test_note_no_active_record_says_no_applications_sent(run_cli):
 
 
 def test_note_fuzzy_match_resolves(run_cli):
-    run_cli("Aretum Consulting", "Data Engineer")
-    out = run_cli("aretum", "note", "Some note")
-    assert "Updated Aretum Consulting's note:" in out
+    run_cli("foobar Consulting", "Data Engineer")
+    out = run_cli("foobar", "note", "Some note")
+    assert "Updated foobar Consulting's note:" in out
 
 
 def test_note_does_not_touch_status_changed(run_cli, freeze_date):

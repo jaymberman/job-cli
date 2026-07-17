@@ -26,9 +26,9 @@ def test_status_no_match_prints_no_applications_sent(run_cli):
 
 
 def test_status_fuzzy_match_resolves(run_cli):
-    run_cli("Aretum Consulting", "Data Engineer")
-    out = run_cli("aretum", "status", "Interviewing")
-    assert "Updated Aretum Consulting:" in out
+    run_cli("foobar Consulting", "Data Engineer")
+    out = run_cli("foobar", "status", "Interviewing")
+    assert "Updated foobar Consulting:" in out
 
 
 def test_status_is_freeform_text_no_validation(run_cli):

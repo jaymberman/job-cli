@@ -4,9 +4,9 @@ import job
 
 
 @pytest.mark.parametrize("raw, expected", [
-    ("Aretum Consulting", "aretumconsulting"),
-    (" aretum  consulting ", "aretumconsulting"),
-    ("Aretum-Consulting!", "aretumconsulting"),
+    ("foobar Consulting", "foobarconsulting"),
+    (" foobar  consulting ", "foobarconsulting"),
+    ("foobar-Consulting!", "foobarconsulting"),
     ("Big Corp", "bigcorp"),
     ("", ""),
 ])
@@ -15,7 +15,7 @@ def test_normalize(raw, expected):
 
 
 def test_score_exact_match():
-    assert job.score("aretumconsulting", "aretumconsulting") == 1.0
+    assert job.score("foobarconsulting", "foobarconsulting") == 1.0
 
 
 def test_score_both_empty_is_exact_match():
@@ -23,14 +23,14 @@ def test_score_both_empty_is_exact_match():
 
 
 def test_score_containment_short_in_long():
-    result = job.score("aretum", "aretumconsulting")
-    containment = 0.75 + 0.25 * (len("aretum") / len("aretumconsulting"))
+    result = job.score("foobar", "foobarconsulting")
+    containment = 0.75 + 0.25 * (len("foobar") / len("foobarconsulting"))
     assert result >= containment
 
 
 def test_score_containment_long_contains_short_either_order():
-    a = job.score("aretum", "aretumconsulting")
-    b = job.score("aretumconsulting", "aretum")
+    a = job.score("foobar", "foobarconsulting")
+    b = job.score("foobarconsulting", "foobar")
     assert a == b
 
 
