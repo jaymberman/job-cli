@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ALIASES_FILE="$HOME/.bash_aliases"
-ALIAS_LINE="alias job='python3 $REPO_DIR/job.py'"
+ALIAS_LINE="alias job='PYTHONPATH=\"$REPO_DIR\" python3 -m job'"
 
 touch "$ALIASES_FILE"
 

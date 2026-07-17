@@ -89,7 +89,7 @@ cd job-cli
 source ~/.bash_aliases   # or just open a new shell
 ```
 
-`install.sh` adds a `job` alias to `~/.bash_aliases` pointing at this checkout's `job.py` — no `PATH` symlink, no `chmod +x` needed, and no elevated permissions required. Re-running it (e.g. after moving the checkout) safely updates the existing alias instead of adding a duplicate.
+`install.sh` adds a `job` alias to `~/.bash_aliases` that runs `python3 -m job` with `PYTHONPATH` set to this checkout — no `PATH` symlink, no `chmod +x` needed, and no elevated permissions required. Re-running it (e.g. after moving the checkout) safely updates the existing alias instead of adding a duplicate.
 
 You're now set up — try `job help` to see the full command list.
 
@@ -102,10 +102,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-There's nothing to `pip install` today — `job.py` is pure standard library — so the virtual environment above is optional hygiene: it just keeps your working copy isolated in case that ever changes. Run your changes directly with:
+There's nothing to `pip install` today — the `job` package is pure standard library — so the virtual environment above is optional hygiene: it just keeps your working copy isolated in case that ever changes. Run your changes directly with:
 
 ```bash
-python3 job.py <args>
+python3 -m job <args>
 ```
 
 ### Running tests
