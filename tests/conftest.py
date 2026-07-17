@@ -44,7 +44,7 @@ def clear_default_tz():
 def freeze_date(monkeypatch):
     """freeze_date(2026, 7, 16) makes date.today() return that date in every
     module that has its own `from datetime import date` and calls
-    date.today() (currently job._legacy, job.interview, and job.display),
+    date.today() (currently job.commands, job.interview, and job.display),
     while date(...) construction and all other `date` behavior stays real
     (FrozenDate is a plain subclass)."""
     def _freeze(year, month, day):
@@ -55,7 +55,7 @@ def freeze_date(monkeypatch):
             def today(cls):
                 return fixed
 
-        monkeypatch.setattr(job._legacy, "date", FrozenDate)
+        monkeypatch.setattr(job.commands, "date", FrozenDate)
         monkeypatch.setattr(job.interview, "date", FrozenDate)
         monkeypatch.setattr(job.display, "date", FrozenDate)
         return fixed

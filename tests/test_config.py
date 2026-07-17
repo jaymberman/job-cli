@@ -167,13 +167,13 @@ def test_load_data_does_not_prompt_or_backfill_when_unconfigured(clear_default_t
 # ---- cmd_config_tz_show -----------------------------------------------------
 
 def test_cmd_config_tz_show_prints_configured_default(capsys):
-    job._legacy.cmd_config_tz_show()
+    job.commands.cmd_config_tz_show()
     assert "Default timezone: CT" in capsys.readouterr().out
 
 
 def test_cmd_config_tz_show_prints_not_set_when_unconfigured(clear_default_tz, capsys):
     clear_default_tz()
-    job._legacy.cmd_config_tz_show()
+    job.commands.cmd_config_tz_show()
     out = capsys.readouterr().out
     assert "not set yet" in out
     assert "job config tz <ZONE>" in out
@@ -182,7 +182,7 @@ def test_cmd_config_tz_show_prints_not_set_when_unconfigured(clear_default_tz, c
 # ---- cmd_config_tz_set ------------------------------------------------------
 
 def test_cmd_config_tz_set_unknown_zone_errors_and_leaves_config_unchanged(capsys):
-    job._legacy.cmd_config_tz_set({}, "XX")
+    job.commands.cmd_config_tz_set({}, "XX")
     assert "Unknown timezone 'XX'" in capsys.readouterr().out
     assert job.storage.get_default_tz() == ("America/Chicago", "CT")
 
@@ -191,7 +191,7 @@ def test_cmd_config_tz_set_same_as_current_is_a_noop_no_confirm(monkeypatch, cap
     def explode(prompt):
         raise AssertionError("must not confirm when the value is unchanged")
     monkeypatch.setattr(job.company, "confirm", explode)
-    job._legacy.cmd_config_tz_set({}, "CT")
+    job.commands.cmd_config_tz_set({}, "CT")
     assert "Default timezone is already CT." in capsys.readouterr().out
 
 
@@ -199,7 +199,7 @@ def test_cmd_config_tz_set_first_time_no_interviews(clear_default_tz, monkeypatc
     clear_default_tz()
     prompts = []
     monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
-    job._legacy.cmd_config_tz_set({}, "PT")
+    job.commands.cmd_config_tz_set({}, "PT")
     assert prompts == ["Set default timezone to PT?"]
     out = capsys.readouterr().out
     assert "Default timezone set to PT." in out
@@ -210,7 +210,7 @@ def test_cmd_config_tz_set_first_time_no_interviews(clear_default_tz, monkeypatc
 def test_cmd_config_tz_set_changes_existing_default_no_interviews(monkeypatch, capsys):
     prompts = []
     monkeypatch.setattr(job.company, "confirm", lambda prompt: prompts.append(prompt) or True)
-    job._legacy.cmd_config_tz_set({}, "ET")
+    job.commands.cmd_config_tz_set({}, "ET")
     assert prompts == ["Change default timezone from CT to ET?"]
     out = capsys.readouterr().out
     assert "Converted" not in out
@@ -223,7 +223,7 @@ def test_cmd_config_tz_set_converts_stored_interviews(monkeypatch, capsys):
     rec = interview_record(interview="2026-07-17T10:00:00-05:00", interview_tz="CT")
     data = {rec["id"]: rec}
 
-    job._legacy.cmd_config_tz_set(data, "ET")
+    job.commands.cmd_config_tz_set(data, "ET")
 
     assert "This will convert 1 stored interview(s) to ET." in prompts[-1]
     out = capsys.readouterr().out
@@ -238,7 +238,7 @@ def test_cmd_config_tz_set_persists_converted_data_to_disk(stub_confirm):
     job.storage.save_data({rec["id"]: rec})
     data = job.storage.load_data()
 
-    job._legacy.cmd_config_tz_set(data, "ET")
+    job.commands.cmd_config_tz_set(data, "ET")
 
     on_disk = read_data()
     (saved,) = on_disk.values()
@@ -251,7 +251,7 @@ def test_cmd_config_tz_set_declined_leaves_config_and_data_untouched(stub_confir
     rec = interview_record(interview="2026-07-17T10:00:00-05:00", interview_tz="CT")
     data = {rec["id"]: rec}
 
-    job._legacy.cmd_config_tz_set(data, "ET")
+    job.commands.cmd_config_tz_set(data, "ET")
 
     assert "Cancelled." in capsys.readouterr().out
     assert job.storage.get_default_tz() == ("America/Chicago", "CT")
