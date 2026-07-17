@@ -42,9 +42,11 @@ def clear_default_tz():
 
 @pytest.fixture
 def freeze_date(monkeypatch):
-    """freeze_date(2026, 7, 16) makes job._legacy.date.today() return that date,
-    while job._legacy.date(...) construction and all other `date` behavior stays
-    real (FrozenDate is a plain subclass)."""
+    """freeze_date(2026, 7, 16) makes date.today() return that date in every
+    module that has its own `from datetime import date` and calls
+    date.today() (currently job._legacy and job.interview), while date(...)
+    construction and all other `date` behavior stays real (FrozenDate is a
+    plain subclass)."""
     def _freeze(year, month, day):
         fixed = date(year, month, day)
 
@@ -54,6 +56,7 @@ def freeze_date(monkeypatch):
                 return fixed
 
         monkeypatch.setattr(job._legacy, "date", FrozenDate)
+        monkeypatch.setattr(job.interview, "date", FrozenDate)
         return fixed
     return _freeze
 
@@ -88,9 +91,9 @@ def stub_confirm(monkeypatch):
 @pytest.fixture
 def stub_meridiem(monkeypatch):
     """stub_meridiem('am') / ('pm') / (None) makes every
-    job._legacy.confirm_meridiem() call resolve without touching input()."""
+    job.interview.confirm_meridiem() call resolve without touching input()."""
     def _set(value):
-        monkeypatch.setattr(job._legacy, "confirm_meridiem", lambda hour, minute: value)
+        monkeypatch.setattr(job.interview, "confirm_meridiem", lambda hour, minute: value)
     return _set
 
 

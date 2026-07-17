@@ -32,28 +32,28 @@ def test_confirm_eof_is_false(eof_input):
 
 def test_confirm_meridiem_am(answer_input):
     answer_input("am")
-    assert job._legacy.confirm_meridiem(9, 0) == "am"
+    assert job.interview.confirm_meridiem(9, 0) == "am"
 
 
 def test_confirm_meridiem_a_shorthand(answer_input):
     answer_input("a")
-    assert job._legacy.confirm_meridiem(9, 0) == "am"
+    assert job.interview.confirm_meridiem(9, 0) == "am"
 
 
 def test_confirm_meridiem_pm(answer_input):
     answer_input("PM")
-    assert job._legacy.confirm_meridiem(9, 0) == "pm"
+    assert job.interview.confirm_meridiem(9, 0) == "pm"
 
 
 def test_confirm_meridiem_p_shorthand(answer_input):
     answer_input("p")
-    assert job._legacy.confirm_meridiem(9, 0) == "pm"
+    assert job.interview.confirm_meridiem(9, 0) == "pm"
 
 
 def test_confirm_meridiem_garbage_is_none(answer_input):
     answer_input("whenever")
-    assert job._legacy.confirm_meridiem(9, 0) is None
+    assert job.interview.confirm_meridiem(9, 0) is None
 
 
 def test_confirm_meridiem_eof_is_none(eof_input):
-    assert job._legacy.confirm_meridiem(9, 0) is None
+    assert job.interview.confirm_meridiem(9, 0) is None

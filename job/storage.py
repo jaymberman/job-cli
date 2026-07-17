@@ -120,12 +120,12 @@ def save_config(config):
 def get_default_tz():
     """Returns (iana_zone, label) for the user's configured default
     timezone, or (None, None) if none is configured yet."""
-    from . import _legacy  # deferred: avoids a load-time cycle with interview.py
+    from . import interview  # deferred: avoids a load-time cycle with interview.py
 
     label = load_config().get("default_tz")
     if label is None:
         return None, None
-    return _legacy.TZ_ALIASES.get(label, (None, None))
+    return interview.TZ_ALIASES.get(label, (None, None))
 
 
 def set_default_tz(label):

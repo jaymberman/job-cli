@@ -59,7 +59,7 @@ def test_build_table_lines_unset_interview_renders_em_dash():
 
 
 def test_row_color_deleted_wins_over_interview_color():
-    aware_dt, tz = job._legacy.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
+    aware_dt, tz = job.interview.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
     r = make_rec("Big Corp", interview=aware_dt.isoformat(), interview_tz=tz,
                   deleted=True, deleted_at="2026-01-05")
     _, _, row_colors = job._legacy.build_table_lines([r])
@@ -72,9 +72,9 @@ def test_row_color_none_when_not_deleted_and_no_interview():
 
 
 def test_build_table_lines_display_tz_converts_interview_cell():
-    aware_dt, tz = job._legacy.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
+    aware_dt, tz = job.interview.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
     r = make_rec("Big Corp", interview=aware_dt.isoformat(), interview_tz=tz)
-    display_tz = job._legacy.resolve_tz_token("ET")
+    display_tz = job.interview.resolve_tz_token("ET")
     lines, _, _ = job._legacy.build_table_lines([r], display_tz=display_tz)
     assert "14:00 ET" in lines[2]
 
@@ -86,7 +86,7 @@ def test_classify_interview_color_none_when_unset():
 
 
 def test_classify_interview_color_today_within_30_min_window(freeze_now, freeze_date):
-    aware_dt, tz = job._legacy.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
+    aware_dt, tz = job.interview.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
     r = make_rec("Big Corp", interview=aware_dt.isoformat(), interview_tz=tz)
     freeze_date(2026, 1, 10)
     freeze_now(datetime(2026, 1, 10, 13, 10, tzinfo=ZoneInfo("America/Chicago")))
@@ -94,7 +94,7 @@ def test_classify_interview_color_today_within_30_min_window(freeze_now, freeze_
 
 
 def test_classify_interview_color_past_after_30_min_cutoff(freeze_now, freeze_date):
-    aware_dt, tz = job._legacy.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
+    aware_dt, tz = job.interview.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
     r = make_rec("Big Corp", interview=aware_dt.isoformat(), interview_tz=tz)
     freeze_date(2026, 1, 10)
     freeze_now(datetime(2026, 1, 10, 13, 31, tzinfo=ZoneInfo("America/Chicago")))
@@ -102,7 +102,7 @@ def test_classify_interview_color_past_after_30_min_cutoff(freeze_now, freeze_da
 
 
 def test_classify_interview_color_exactly_at_30_min_cutoff_is_past(freeze_now, freeze_date):
-    aware_dt, tz = job._legacy.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
+    aware_dt, tz = job.interview.parse_interview_datetime(["2026-01-10", "13:00", "CT"])
     r = make_rec("Big Corp", interview=aware_dt.isoformat(), interview_tz=tz)
     freeze_date(2026, 1, 10)
     freeze_now(datetime(2026, 1, 10, 13, 30, tzinfo=ZoneInfo("America/Chicago")))
@@ -110,7 +110,7 @@ def test_classify_interview_color_exactly_at_30_min_cutoff_is_past(freeze_now, f
 
 
 def test_classify_interview_color_future_date(freeze_now, freeze_date):
-    aware_dt, tz = job._legacy.parse_interview_datetime(["2026-01-11", "13:00", "CT"])
+    aware_dt, tz = job.interview.parse_interview_datetime(["2026-01-11", "13:00", "CT"])
     r = make_rec("Big Corp", interview=aware_dt.isoformat(), interview_tz=tz)
     freeze_date(2026, 1, 10)
     freeze_now(datetime(2026, 1, 10, 13, 0, tzinfo=ZoneInfo("America/Chicago")))

@@ -54,14 +54,14 @@ def test_resolve_or_prompt_returns_configured_value_without_touching_input(monke
     def explode(prompt=""):
         raise AssertionError("input() should never be called when already configured")
     monkeypatch.setattr("builtins.input", explode)
-    assert job._legacy.resolve_or_prompt_default_tz() == ("America/Chicago", "CT")
+    assert job.interview.resolve_or_prompt_default_tz() == ("America/Chicago", "CT")
 
 
 def test_resolve_or_prompt_asks_and_persists_when_unconfigured(clear_default_tz, tty, answer_input, capsys):
     clear_default_tz()
     tty(stdin=True)
     answer_input("ET")
-    result = job._legacy.resolve_or_prompt_default_tz()
+    result = job.interview.resolve_or_prompt_default_tz()
     assert result == ("America/New_York", "ET")
     assert job.storage.get_default_tz() == ("America/New_York", "ET")
     assert "Default timezone set to ET." in capsys.readouterr().out
@@ -82,7 +82,7 @@ def test_resolve_or_prompt_shows_the_setup_prompt_text(clear_default_tz, tty, mo
         return "ET"
     monkeypatch.setattr("builtins.input", fake_input)
 
-    job._legacy.resolve_or_prompt_default_tz()
+    job.interview.resolve_or_prompt_default_tz()
     assert prompts == ["You haven't set a default timezone yet. Enter one "
                         "(CT/ET/MT/PT/UTC, or a synonym): "]
 
@@ -91,7 +91,7 @@ def test_resolve_or_prompt_accepts_synonym_and_stores_short_label(clear_default_
     clear_default_tz()
     tty(stdin=True)
     answer_input("EASTERN")
-    assert job._legacy.resolve_or_prompt_default_tz() == ("America/New_York", "ET")
+    assert job.interview.resolve_or_prompt_default_tz() == ("America/New_York", "ET")
     assert job.storage.get_default_tz() == ("America/New_York", "ET")
 
 
@@ -99,7 +99,7 @@ def test_resolve_or_prompt_blank_answer_cancels_without_persisting(clear_default
     clear_default_tz()
     tty(stdin=True)
     answer_input("")
-    assert job._legacy.resolve_or_prompt_default_tz() == (None, None)
+    assert job.interview.resolve_or_prompt_default_tz() == (None, None)
     assert job.storage.get_default_tz() == (None, None)
     assert "Cancelled." in capsys.readouterr().out
 
@@ -107,7 +107,7 @@ def test_resolve_or_prompt_blank_answer_cancels_without_persisting(clear_default
 def test_resolve_or_prompt_eof_cancels_without_persisting(clear_default_tz, tty, eof_input, capsys):
     clear_default_tz()
     tty(stdin=True)
-    assert job._legacy.resolve_or_prompt_default_tz() == (None, None)
+    assert job.interview.resolve_or_prompt_default_tz() == (None, None)
     assert job.storage.get_default_tz() == (None, None)
     assert "Cancelled." in capsys.readouterr().out
 
@@ -116,7 +116,7 @@ def test_resolve_or_prompt_unrecognized_answer_cancels_without_persisting(clear_
     clear_default_tz()
     tty(stdin=True)
     answer_input("XX")
-    assert job._legacy.resolve_or_prompt_default_tz() == (None, None)
+    assert job.interview.resolve_or_prompt_default_tz() == (None, None)
     assert job.storage.get_default_tz() == (None, None)
     assert "Unknown timezone 'XX'" in capsys.readouterr().out
 
@@ -129,7 +129,7 @@ def test_resolve_or_prompt_non_interactive_errors_without_prompting(clear_defaul
         raise AssertionError("must not call input() when stdin isn't a TTY")
     monkeypatch.setattr("builtins.input", explode)
 
-    result = job._legacy.resolve_or_prompt_default_tz()
+    result = job.interview.resolve_or_prompt_default_tz()
     assert result == (None, None)
     assert job.storage.get_default_tz() == (None, None)
 
@@ -137,7 +137,7 @@ def test_resolve_or_prompt_non_interactive_errors_without_prompting(clear_defaul
 def test_resolve_or_prompt_non_interactive_message_names_the_config_command(clear_default_tz, tty, capsys):
     clear_default_tz()
     tty(stdin=False)
-    job._legacy.resolve_or_prompt_default_tz()
+    job.interview.resolve_or_prompt_default_tz()
     out = capsys.readouterr().out
     assert "No default timezone is configured yet." in out
     assert "job config tz" in out

@@ -113,7 +113,7 @@ def test_dispatch_lookup_with_valid_trailing_tz(run_cli, stub_confirm):
 def test_dispatch_lookup_with_invalid_trailing_tz_errors_and_prints_nothing_else(run_cli):
     run_cli("Big Corp", "Data Engineer")
     out = run_cli("Big Corp", "tz", "XX")
-    assert out.strip() == job._legacy.unknown_tz_message("XX")
+    assert out.strip() == job.interview.unknown_tz_message("XX")
 
 
 def test_dispatch_status_with_invalid_trailing_tz(run_cli):
