@@ -2,7 +2,7 @@ import job
 
 
 def test_print_usage_mentions_core_commands(capsys):
-    job._legacy.print_usage()
+    job.dispatch.print_usage()
     out = capsys.readouterr().out
     assert "Usage:" in out
     assert "job <company>" in out
@@ -18,31 +18,31 @@ def test_print_usage_mentions_core_commands(capsys):
 
 
 def test_print_list_help(capsys):
-    job._legacy.print_list_help()
+    job.dispatch.print_list_help()
     out = capsys.readouterr().out
     assert "Usage: job list" in out
     assert "sort" in out
 
 
 def test_print_search_help(capsys):
-    job._legacy.print_search_help()
+    job.dispatch.print_search_help()
     out = capsys.readouterr().out
     assert "Usage: job search" in out
 
 
 def test_print_interviews_help(capsys):
-    job._legacy.print_interviews_help()
+    job.dispatch.print_interviews_help()
     out = capsys.readouterr().out
     assert "Usage: job interviews" in out
 
 
 def test_print_today_help(capsys):
-    job._legacy.print_today_help()
+    job.dispatch.print_today_help()
     out = capsys.readouterr().out
     assert "Usage: job today" in out
 
 
 def test_print_favorites_help(capsys):
-    job._legacy.print_favorites_help()
+    job.dispatch.print_favorites_help()
     out = capsys.readouterr().out
     assert "Usage: job favorites" in out

@@ -157,9 +157,9 @@ def tty(monkeypatch):
 @pytest.fixture
 def run_cli(monkeypatch, capsys):
     """Drives the CLI the way a real invocation would: sets sys.argv, calls
-    job._legacy.main(), and returns captured stdout."""
+    job.dispatch.main(), and returns captured stdout."""
     def _run(*argv):
-        monkeypatch.setattr(job._legacy.sys, "argv", ["job"] + list(argv))
-        job._legacy.main()
+        monkeypatch.setattr(job.dispatch.sys, "argv", ["job"] + list(argv))
+        job.dispatch.main()
         return capsys.readouterr().out
     return _run

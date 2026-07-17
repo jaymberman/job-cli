@@ -515,7 +515,3 @@ def main():
         return
 
     dispatch_company(data, args[0], args[1:])
-
-
-if __name__ == "__main__":
-    main()

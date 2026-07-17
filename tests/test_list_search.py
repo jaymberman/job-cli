@@ -4,31 +4,31 @@ import job
 # ---- parse_sort_field_order --------------------------------------------------
 
 def test_parse_sort_field_order_defaults_to_asc():
-    key, reverse = job._legacy.parse_sort_field_order("company", None)
+    key, reverse = job.dispatch.parse_sort_field_order("company", None)
     assert key == "company"
     assert reverse is False
 
 
 def test_parse_sort_field_order_desc():
-    key, reverse = job._legacy.parse_sort_field_order("status-changed", "desc")
+    key, reverse = job.dispatch.parse_sort_field_order("status-changed", "desc")
     assert key == "status_changed"
     assert reverse is True
 
 
 def test_parse_sort_field_order_case_insensitive():
-    key, reverse = job._legacy.parse_sort_field_order("COMPANY", "ASC")
+    key, reverse = job.dispatch.parse_sort_field_order("COMPANY", "ASC")
     assert key == "company"
     assert reverse is False
 
 
 def test_parse_sort_field_order_unknown_field(capsys):
-    key, reverse = job._legacy.parse_sort_field_order("bogus", None)
+    key, reverse = job.dispatch.parse_sort_field_order("bogus", None)
     assert (key, reverse) == (None, None)
     assert "Unknown sort field 'bogus'" in capsys.readouterr().out
 
 
 def test_parse_sort_field_order_unknown_order(capsys):
-    key, reverse = job._legacy.parse_sort_field_order("company", "sideways")
+    key, reverse = job.dispatch.parse_sort_field_order("company", "sideways")
     assert (key, reverse) == (None, None)
     assert "Unknown sort order 'sideways'" in capsys.readouterr().out
 
@@ -36,57 +36,57 @@ def test_parse_sort_field_order_unknown_order(capsys):
 # ---- scan_display_flags -------------------------------------------------------
 
 def test_scan_display_flags_empty():
-    assert job._legacy.scan_display_flags([]) == (False, None, None, None, [])
+    assert job.dispatch.scan_display_flags([]) == (False, None, None, None, [])
 
 
 def test_scan_display_flags_all():
-    assert job._legacy.scan_display_flags(["--all"]) == (True, None, None, None, [])
+    assert job.dispatch.scan_display_flags(["--all"]) == (True, None, None, None, [])
 
 
 def test_scan_display_flags_tz():
-    assert job._legacy.scan_display_flags(["tz", "PT"]) == (False, "PT", None, None, [])
+    assert job.dispatch.scan_display_flags(["tz", "PT"]) == (False, "PT", None, None, [])
 
 
 def test_scan_display_flags_dangling_tz_is_leftover():
-    assert job._legacy.scan_display_flags(["tz"]) == (False, None, None, None, ["tz"])
+    assert job.dispatch.scan_display_flags(["tz"]) == (False, None, None, None, ["tz"])
 
 
 def test_scan_display_flags_duplicate_tz_last_wins():
-    result = job._legacy.scan_display_flags(["tz", "CT", "tz", "ET"])
+    result = job.dispatch.scan_display_flags(["tz", "CT", "tz", "ET"])
     assert result == (False, "ET", None, None, [])
 
 
 def test_scan_display_flags_sort_field_only():
-    result = job._legacy.scan_display_flags(["sort", "company"], allow_sort=True)
+    result = job.dispatch.scan_display_flags(["sort", "company"], allow_sort=True)
     assert result == (False, None, "company", None, [])
 
 
 def test_scan_display_flags_sort_field_and_order():
-    result = job._legacy.scan_display_flags(["sort", "company", "desc"], allow_sort=True)
+    result = job.dispatch.scan_display_flags(["sort", "company", "desc"], allow_sort=True)
     assert result == (False, None, "company", "desc", [])
 
 
 def test_scan_display_flags_sort_order_that_is_actually_a_flag_starter_is_not_consumed():
-    result = job._legacy.scan_display_flags(["sort", "company", "--all"], allow_sort=True)
+    result = job.dispatch.scan_display_flags(["sort", "company", "--all"], allow_sort=True)
     assert result == (True, None, "company", None, [])
 
 
 def test_scan_display_flags_dangling_sort_is_leftover():
-    assert job._legacy.scan_display_flags(["sort"], allow_sort=True) == (False, None, None, None, ["sort"])
+    assert job.dispatch.scan_display_flags(["sort"], allow_sort=True) == (False, None, None, None, ["sort"])
 
 
 def test_scan_display_flags_sort_not_allowed_becomes_leftover():
-    result = job._legacy.scan_display_flags(["sort", "company"], allow_sort=False)
+    result = job.dispatch.scan_display_flags(["sort", "company"], allow_sort=False)
     assert result == (False, None, None, None, ["sort", "company"])
 
 
 def test_scan_display_flags_unrecognized_token_is_leftover():
-    assert job._legacy.scan_display_flags(["bogus"]) == (False, None, None, None, ["bogus"])
+    assert job.dispatch.scan_display_flags(["bogus"]) == (False, None, None, None, ["bogus"])
 
 
 def test_scan_display_flags_mixed_order():
     tokens = ["tz", "ET", "--all", "sort", "status", "desc"]
-    result = job._legacy.scan_display_flags(tokens, allow_sort=True)
+    result = job.dispatch.scan_display_flags(tokens, allow_sort=True)
     assert result == (True, "ET", "status", "desc", [])
 
 

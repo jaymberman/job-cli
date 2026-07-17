@@ -11,54 +11,54 @@ def read_data():
 # ---- strip_trailing_tz (direct unit tests) -----------------------------------
 
 def test_strip_trailing_tz_too_short_unchanged():
-    assert job._legacy.strip_trailing_tz(["status"]) == (["status"], None)
+    assert job.dispatch.strip_trailing_tz(["status"]) == (["status"], None)
 
 
 def test_strip_trailing_tz_no_tz_marker_unchanged():
     rest = ["status", "Interviewing"]
-    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
+    assert job.dispatch.strip_trailing_tz(rest) == (rest, None)
 
 
 def test_strip_trailing_tz_bare_lookup_shape():
-    assert job._legacy.strip_trailing_tz(["tz", "CT"]) == ([], "CT")
+    assert job.dispatch.strip_trailing_tz(["tz", "CT"]) == ([], "CT")
 
 
 def test_strip_trailing_tz_all_shape():
-    assert job._legacy.strip_trailing_tz(["--all", "tz", "CT"]) == (["--all"], "CT")
+    assert job.dispatch.strip_trailing_tz(["--all", "tz", "CT"]) == (["--all"], "CT")
 
 
 def test_strip_trailing_tz_delete_shape():
-    assert job._legacy.strip_trailing_tz(["delete", "tz", "ET"]) == (["delete"], "ET")
+    assert job.dispatch.strip_trailing_tz(["delete", "tz", "ET"]) == (["delete"], "ET")
 
 
 def test_strip_trailing_tz_unrecognized_single_token_unchanged():
     rest = ["somefield", "tz", "CT"]
-    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
+    assert job.dispatch.strip_trailing_tz(rest) == (rest, None)
 
 
 def test_strip_trailing_tz_delete_hard_shape():
-    result = job._legacy.strip_trailing_tz(["delete", "--hard", "tz", "MT"])
+    result = job.dispatch.strip_trailing_tz(["delete", "--hard", "tz", "MT"])
     assert result == (["delete", "--hard"], "MT")
 
 
 def test_strip_trailing_tz_status_shape():
-    result = job._legacy.strip_trailing_tz(["status", "Interviewing", "tz", "PT"])
+    result = job.dispatch.strip_trailing_tz(["status", "Interviewing", "tz", "PT"])
     assert result == (["status", "Interviewing"], "PT")
 
 
 def test_strip_trailing_tz_note_shape():
-    result = job._legacy.strip_trailing_tz(["note", "Some note", "tz", "PT"])
+    result = job.dispatch.strip_trailing_tz(["note", "Some note", "tz", "PT"])
     assert result == (["note", "Some note"], "PT")
 
 
 def test_strip_trailing_tz_delete_with_non_hard_third_token_unchanged():
     rest = ["delete", "--soft-ish", "tz", "CT"]
-    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
+    assert job.dispatch.strip_trailing_tz(rest) == (rest, None)
 
 
 def test_strip_trailing_tz_too_many_preceding_tokens_unchanged():
     rest = ["a", "b", "c", "tz", "CT"]
-    assert job._legacy.strip_trailing_tz(rest) == (rest, None)
+    assert job.dispatch.strip_trailing_tz(rest) == (rest, None)
 
 
 # ---- dispatch_company branches (via run_cli) --------------------------------
