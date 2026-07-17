@@ -65,6 +65,8 @@ Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14    
 - **Soft delete by default** — deleting a record hides it from everyday views but keeps its history, so reapplying to a company you were once declined by doesn't erase the past. `delete --hard` is there when you really want something gone.
 - **Freeform status** — status is just text. No enum to fight with.
 - **Notes on every record** — attach freeform context to any record, shown wherever that record is returned; edit or clear it any time, with no history of past edits.
+- **Favorites** — mark arbitrarily many active applications as favorites (`job <company> --favorite`) and pull them up in one place with `job favorites`. Applies instantly, no confirmation, and is never shown as a column or highlight anywhere else. Deleting a record clears its favorite status.
+- **Rename a company** — fix a typo or update a company's name (`job <company> --rename <new_name>`) without losing its status, note, favorite, interview, or declined history. Cascades to any soft-deleted records sharing the old name; blocked if the new name already has an active record, confirms if it only has soft-deleted history there.
 - **Interview scheduling with real timezone handling** — type interview times in whatever shorthand you'd naturally use (`2026-07-13 13:00 CT`, `1/1/2027 9pm ET`, `7/13 3pm`); ambiguous hours are always confirmed, never guessed.
 - **Color-coded, scrollable tables** — interview rows are highlighted (blue = today, green = future, yellow = past, red = soft-deleted), and tables wider or taller than your terminal scroll in place instead of wrapping.
 - **Search across everything** — one fuzzy keyword against company, title, or status.
@@ -136,6 +138,10 @@ Company names, titles, statuses, and notes are each passed as a single shell arg
 | Cancel an interview | `job "Big Corp" interview cancel` | Clears the scheduled interview, no confirmation needed |
 | Soft-delete | `job "Big Corp" delete` | Hides the record from normal views; history is kept (asks to confirm) |
 | Permanently delete | `job "Big Corp" delete --hard` | Irreversible; targets soft-deleted history if there's no active record (asks to confirm) |
+| Mark a favorite | `job "Big Corp" --favorite` | Applies immediately, no confirmation; cleared automatically on delete |
+| Remove a favorite | `job "Big Corp" --remove-favorite` | Applies immediately, no confirmation |
+| Rename a company | `job "Big Corp" --rename "Big Corp Inc"` | Also renames any soft-deleted history sharing the old name; blocked if the new name already has an active record, confirms if it only has soft-deleted history |
+| List favorites | `job favorites` | Every favorited active record, sorted by company name (A-Z); favorite status is never shown as a column anywhere |
 | List everything | `job list` | Sorted by company name (A-Z) by default |
 | List, sorted | `job list sort status-changed desc` | Valid fields: `company`, `title`, `applied`, `status`, `status-changed` |
 | List, including history | `job list --all` | Adds a trailing Deleted column |

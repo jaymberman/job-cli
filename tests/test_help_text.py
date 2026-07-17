@@ -10,6 +10,10 @@ def test_print_usage_mentions_core_commands(capsys):
     assert "job search" in out
     assert "job interviews" in out
     assert "job today" in out
+    assert "job favorites" in out
+    assert "--favorite" in out
+    assert "--remove-favorite" in out
+    assert "--rename" in out
     assert "--company" in out
 
 
@@ -36,3 +40,9 @@ def test_print_today_help(capsys):
     job.print_today_help()
     out = capsys.readouterr().out
     assert "Usage: job today" in out
+
+
+def test_print_favorites_help(capsys):
+    job.print_favorites_help()
+    out = capsys.readouterr().out
+    assert "Usage: job favorites" in out

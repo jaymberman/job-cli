@@ -36,7 +36,7 @@ else:
     DATA_FILE = os.path.join(DATA_DIR, "applications.json")
 
 # Documentation-only: illustrative, not enforced via membership checks anywhere.
-RESERVED = {"list", "status", "delete", "search", "sort", "help", "interview", "interviews", "today", "tz", "config", "note"}
+RESERVED = {"list", "status", "delete", "search", "sort", "help", "interview", "interviews", "today", "tz", "config", "note", "favorites"}
 AUTO_THRESHOLD = 0.80
 CONFIRM_THRESHOLD = 0.55
 AUTO_MARGIN = 0.12
@@ -620,6 +620,7 @@ def cmd_create(data, company, title, status=None):
         "status": status if status is not None else "sent app",
         "status_changed": today,
         "note": None,
+        "is_favorite": False,
         "deleted": False,
         "deleted_at": None,
     }
@@ -660,6 +661,75 @@ def cmd_note(data, company, text, display_tz=None):
     print_record(rec, display_tz=display_tz)
 
 
+def cmd_favorite(data, company, favorite=True):
+    """Sets or clears is_favorite on the active record for `company`. Applies
+    immediately, no confirmation -- mirrors status/note rather than delete.
+    Idempotent with no special no-op messaging: re-favoriting an already-
+    favorited record (or vice versa) just prints the same message again."""
+    key = resolve_active(data, company)
+    if key is None:
+        print("no applications sent")
+        return
+    rec = data[key]
+    rec["is_favorite"] = favorite
+    save_data(data)
+    if favorite:
+        print(f"Marked {rec['company']} as a favorite.")
+    else:
+        print(f"Removed {rec['company']} from favorites.")
+
+
+def cmd_rename(data, company, new_name):
+    """Renames the active record for `company` to `new_name`, cascading to
+    every soft-deleted record that shares the old company's normalized name
+    (company identity here is purely "records that normalize the same", so
+    the whole group has to move together to keep --all and the declined-
+    duplicate warning consistent under the new name). Applies immediately,
+    no confirmation, unless the new name collides with another company:
+    an existing *active* record there is a hard error (mirrors cmd_create's
+    duplicate-active guard); existing soft-deleted-only history there prompts
+    to confirm merging it in (mirrors cmd_create's declined-duplicate prompt).
+    A rename that resolves back to the same company (e.g. just fixing casing/
+    spacing) skips both collision checks entirely. Never touches
+    status_changed -- this is an identity edit, not a status transition."""
+    key = resolve_active(data, company)
+    if key is None:
+        print("no applications sent")
+        return
+    rec = data[key]
+    old_display = rec["company"]
+    old_norm = normalize(old_display)
+    new_norm = normalize(new_name)
+
+    if new_norm != old_norm:
+        active_key = resolve_active(data, new_name)
+        if active_key is not None and active_key != key:
+            print(f"{data[active_key]['company']} already has a record:")
+            print_record(data[active_key])
+            print("Use `status` to update it or `delete` to remove it first.")
+            return
+
+        declined_pool = deleted_records(data)
+        declined_key = resolve_company_key(declined_pool, new_name, data=data)
+        if declined_key is not None:
+            display = company_records(declined_pool, declined_key)[0]["company"]
+            prompt = f"already applied to {display} (declined). Do you want to proceed with the rename?"
+            if not confirm(prompt):
+                print("Cancelled.")
+                return
+
+    affected = [r for r in data.values() if normalize(r["company"]) == old_norm]
+    for r in affected:
+        r["company"] = new_name
+    save_data(data)
+
+    cascaded = len(affected) - 1
+    if cascaded > 0:
+        print(f"Renamed {old_display} to {new_name} ({cascaded} soft-deleted record(s) also updated).")
+    else:
+        print(f"Renamed {old_display} to {new_name}.")
+
+
 def cmd_delete(data, company, hard=False, display_tz=None):
     key = resolve_active(data, company)
     if key is not None:
@@ -678,6 +748,7 @@ def cmd_delete(data, company, hard=False, display_tz=None):
         else:
             rec["deleted"] = True
             rec["deleted_at"] = date.today().isoformat()
+            rec["is_favorite"] = False
             save_data(data)
             print(f"Soft-deleted record for {rec['company']}. "
                   f"It's hidden from result sets but can be viewed with `job {rec['company']} --all`.")
@@ -1200,6 +1271,19 @@ def cmd_today(data, show_all=False, display_tz=None):
     print_table(matches, show_deleted=show_all, display_tz=display_tz)
 
 
+def cmd_favorites(data):
+    """Every active record with is_favorite set, sorted by company name (A-Z)
+    -- a fixed order, no sort modifier, mirroring interviews/today rather
+    than list/search. No --all: a soft-deleted record can never be
+    favorited (delete clears the flag), so there's nothing extra to show."""
+    matches = [r for r in active_records(data).values() if r.get("is_favorite", False)]
+    if not matches:
+        print("no favorites yet")
+        return
+    matches.sort(key=lambda r: r["company"].lower())
+    print_table(matches)
+
+
 def print_usage():
     print("Usage:")
     print("  job <company>                                     Look up a company (active record only)")
@@ -1214,6 +1298,10 @@ def print_usage():
     print("  job <company> delete                              Soft-delete a record: hidden from result sets, kept for history (asks to confirm)")
     print("  job <company> delete --hard                       Permanently delete a record: cannot be undone (asks to confirm);")
     print("                                                     if there's no active record, targets soft-deleted history instead")
+    print("  job <company> --favorite                          Mark a record as a favorite")
+    print("  job <company> --remove-favorite                   Remove a record's favorite mark")
+    print("  job <company> --rename <new_name>                 Rename a company (cascades to its soft-deleted history)")
+    print("  job favorites                                     Show every favorited record (active only, company A-Z)")
     print("  job list [--all] [tz <ZONE>] [sort <field> [asc|desc]]        List all records (default: company, A-Z); --all includes soft-deleted")
     print("  job search <keyword> [--all] [tz <ZONE>] [sort <field> [asc|desc]]  Search company, title, or status (fuzzy); --all includes soft-deleted")
     print("  job interviews [--all] [tz <ZONE>]                Show interviews starting in the future or within the last 30 min, sorted by interview date (desc); --all also includes past interviews and soft-deleted records")
@@ -1238,6 +1326,17 @@ def print_usage():
     print("A note is freeform text shown alongside every record wherever it's returned (lookup,")
     print("list, search, interviews, today). It's null until set, has no history of past edits or")
     print("when it last changed, and is cleared with `job <company> note clear`.")
+    print()
+    print("Favorite a record with `job <company> --favorite`, unmark it with `job <company>")
+    print("--remove-favorite`, and view all favorites with `job favorites`. Both apply immediately,")
+    print("no confirmation needed. Favorite status is never shown anywhere else (no column, no")
+    print("highlight) and is cleared automatically whenever a record is deleted.")
+    print()
+    print("Rename a company with `job <company> --rename <new_name>` — this also renames any soft-deleted")
+    print("history sharing the old name, so `--all` and the declined-duplicate warning stay consistent under")
+    print("the new name. Applies immediately, no confirmation, unless the new name collides with another")
+    print("company: an existing active record blocks the rename (same message as a duplicate `create`); existing")
+    print("soft-deleted history at the new name prompts to confirm merging it in instead.")
     print()
     print("If a company name collides with a built-in keyword, use --company, e.g.:")
     print('  job --company list "Data Engineer"                looks up/creates company "list"')
@@ -1324,6 +1423,15 @@ def print_today_help():
     print("soft-deleted rows are always highlighted red instead.")
 
 
+def print_favorites_help():
+    print("Usage: job favorites")
+    print()
+    print("Shows every active record marked as a favorite (see `job <company> --favorite`),")
+    print("sorted by company name (A-Z). Favorite status is never shown anywhere else --")
+    print("this is the only place it's surfaced, and even here it's implicit: every row")
+    print("listed is a favorite, there's no separate Favorite column.")
+
+
 def strip_trailing_tz(rest):
     """If `rest` ends with a literal `tz <ZONE>` pair (case-insensitive) AND
     the tokens preceding it form one of the shapes that supports a
@@ -1376,12 +1484,18 @@ def dispatch_company(data, company, rest):
             cmd_delete(data, company, display_tz=display_tz)
         elif second.lower() == "--all":
             cmd_lookup(data, company, show_all=True, display_tz=display_tz)
+        elif second.lower() == "--favorite":
+            cmd_favorite(data, company, favorite=True)
+        elif second.lower() == "--remove-favorite":
+            cmd_favorite(data, company, favorite=False)
         elif second.lower() == "status":
             print("Missing new status value. Usage: job <company> status <new_status>")
         elif second.lower() == "note":
             print("Missing note value. Usage:")
             print("  job <company> note <text>")
             print("  job <company> note clear")
+        elif second.lower() == "--rename":
+            print("Missing new company name. Usage: job <company> --rename <new_name>")
         else:
             cmd_create(data, company, second)
         return
@@ -1393,6 +1507,15 @@ def dispatch_company(data, company, rest):
             return
         if second.lower() == "note":
             cmd_note(data, company, third, display_tz=display_tz)
+            return
+        if second.lower() == "--rename":
+            cmd_rename(data, company, third)
+            return
+        if second.lower() == "--favorite":
+            print("`--favorite` doesn't take an extra argument.")
+            return
+        if second.lower() == "--remove-favorite":
+            print("`--remove-favorite` doesn't take an extra argument.")
             return
         if second.lower() == "delete":
             if third.lower() == "--hard":
@@ -1567,6 +1690,16 @@ def main():
         if not ok:
             return
         cmd_today(data, show_all=show_all, display_tz=display_tz)
+        return
+
+    if args[0].lower() == "favorites":
+        if len(args) == 1:
+            cmd_favorites(data)
+            return
+        if len(args) == 2 and args[1].lower() == "help":
+            print_favorites_help()
+            return
+        print("Unrecognized `job favorites` arguments. Usage: job favorites")
         return
 
     dispatch_company(data, args[0], args[1:])
