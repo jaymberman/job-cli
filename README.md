@@ -17,17 +17,39 @@
 
 <br>
 
+<!-- DEMO:START -->
+
+![job-cli demo: creating and tracking applications, with color-coded interview rows (overdue/today/upcoming) and a soft-deleted record view](assets/demo.svg)
+
+<details>
+<summary>Plain-text transcript (no color)</summary>
 
 ```
 $ job "Big Corp" "Data Engineer"
-Created record for Big Corp.
+Created record for Big Corp:
+Company: Big Corp
+Title: Data Engineer
+Applied: 2026-07-16
+Interview: —
+Status: sent app
+Status changed: 2026-07-16
+Note: —
 
 $ job "big corp"
-Company        Title           Applied      Interview  Status Changed  Status    Note
-Big Corp       Data Engineer   2026-07-16   —          2026-07-16      sent app  —
+Company   Title          Applied     Interview  Status Changed  Status    Note
+--------  -------------  ----------  ---------  --------------  --------  ----
+Big Corp  Data Engineer  2026-07-16  —          2026-07-16      sent app  —   
 
 $ job "big corp" "Product Manager - Data"
-Big Corp already has a record
+Big Corp already has a record:
+Company: Big Corp
+Title: Data Engineer
+Applied: 2026-07-16
+Interview: —
+Status: sent app
+Status changed: 2026-07-16
+Note: —
+Use `status` to update it or `delete` to remove it first.
 
 $ job "Big Corp" note "Referred by a friend on the team"
 Updated Big Corp's note:
@@ -40,25 +62,60 @@ Status changed: 2026-07-16
 Note: Referred by a friend on the team
 
 $ job list
-Company        Title           Applied      Interview             Status Changed  Status    Note
-Big Corp       Data Engineer   2026-07-16   —                     2026-07-16      sent app  Referred by a friend on the team
-Big Corp5      Data Engineer   2026-07-16   —                     2026-07-16      sent app  —
-Big Corp6      Data Engineer   2026-07-16   —                     2026-07-16      sent app  —
-Big Corp7      Data Engineer   2026-07-16   —                     2026-07-16      sent app  —
-Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever  —
-Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status    —
-Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want  —
+Company    Title          Applied     Interview            Status Changed  Status    Note                            
+---------  -------------  ----------  -------------------  --------------  --------  --------------------------------
+Big Corp   Data Engineer  2026-07-16  —                    2026-07-16      sent app  Referred by a friend on the team
+Big Corp2  Data Engineer  2026-07-10  2026-07-14 10:00 ET  2026-07-12      whatever  —                               
+Big Corp3  Data Engineer  2026-07-11  2026-07-16 11:00 ET  2026-07-13      status    —                               
+Big Corp4  Data Engineer  2026-07-12  2026-07-17 15:00 ET  2026-07-14      you want  —                               
+Big Corp5  Data Engineer  2026-07-16  —                    2026-07-16      sent app  —                               
+Big Corp6  Data Engineer  2026-07-16  —                    2026-07-16      sent app  —                               
+Big Corp7  Data Engineer  2026-07-16  —                    2026-07-16      sent app  —                               
 
 $ job "big corp" interview 7/20 9am ET
+Updated Big Corp's interview:
+Company: Big Corp
+Title: Data Engineer
+Applied: 2026-07-16
+Interview: 2026-07-20 09:00 ET
+Status: sent app
+Status changed: 2026-07-16
+Note: Referred by a friend on the team
 
 $ job interviews
-Company        Title           Applied      Interview             Status Changed  Status    Note
-Big Corp       Data Engineer   2026-07-16   2026-07-20 09:00 ET   2026-07-16      sent app  Referred by a friend on the team
-Big Corp2      Data Engineer   2026-07-10   2026-07-17 10:00 ET   2026-07-12      whatever  —
-Big Corp3      Data Engineer   2026-07-11   2026-07-17 11:00 ET   2026-07-13      status    —
-Big Corp4      Data Engineer   2026-07-12   2026-07-17 15:00 ET   2026-07-14      you want  —
+Company    Title          Applied     Interview            Status Changed  Status    Note                            
+---------  -------------  ----------  -------------------  --------------  --------  --------------------------------
+Big Corp   Data Engineer  2026-07-16  2026-07-20 09:00 ET  2026-07-16      sent app  Referred by a friend on the team
+Big Corp4  Data Engineer  2026-07-12  2026-07-17 15:00 ET  2026-07-14      you want  —                               
+Big Corp3  Data Engineer  2026-07-11  2026-07-16 11:00 ET  2026-07-13      status    —                               
+
+$ job "Big Corp5" delete
+About to delete:
+Company: Big Corp5
+Title: Data Engineer
+Applied: 2026-07-16
+Interview: —
+Status: sent app
+Status changed: 2026-07-16
+Note: —
+Soft-deleted record for Big Corp5. It's hidden from result sets but can be viewed with `job Big Corp5 --all`.
+
+$ job list --all
+Company    Title          Applied     Interview            Status Changed  Status    Note                              Deleted   
+---------  -------------  ----------  -------------------  --------------  --------  --------------------------------  ----------
+Big Corp   Data Engineer  2026-07-16  2026-07-20 09:00 ET  2026-07-16      sent app  Referred by a friend on the team  —         
+Big Corp2  Data Engineer  2026-07-10  2026-07-14 10:00 ET  2026-07-12      whatever  —                                 —         
+Big Corp3  Data Engineer  2026-07-11  2026-07-16 11:00 ET  2026-07-13      status    —                                 —         
+Big Corp4  Data Engineer  2026-07-12  2026-07-17 15:00 ET  2026-07-14      you want  —                                 —         
+Big Corp5  Data Engineer  2026-07-16  —                    2026-07-16      sent app  —                                 2026-07-16
+Big Corp6  Data Engineer  2026-07-16  —                    2026-07-16      sent app  —                                 —         
+Big Corp7  Data Engineer  2026-07-16  —                    2026-07-16      sent app  —                                 —         
 
 ```
+
+</details>
+
+<!-- DEMO:END -->
 
 ## Features
 

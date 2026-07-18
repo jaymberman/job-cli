@@ -2,3 +2,9 @@
 # job.py itself has zero dependencies -- see requirements.txt.
 pytest>=7.0
 coverage>=7.0
+
+# Only needed to regenerate the README's terminal-demo SVG
+# (scripts/generate_readme_demo.py) -- not a test-suite dependency.
+# Pinned below the next major so reruns stay byte-identical; a major bump
+# could silently change rich's default SVG export theme/colors.
+rich>=13.0,<14
