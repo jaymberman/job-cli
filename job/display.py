@@ -71,13 +71,18 @@ def build_table_lines(records, show_deleted=False, display_tz=None):
     output, since ordinary list/search/today/lookup results are always
     active-only already. `display_tz`, if given, converts every row's
     Interview cell into that zone for display only — row selection and
-    classify_interview_color's highlighting are untouched."""
+    classify_interview_color's highlighting are untouched. A favorited
+    record gets a plain "♥" appended to its Company cell (one space
+    separator, no ANSI color) — folded into the cell string itself, before
+    width/padding math, rather than a separate column, so it's just more
+    text as far as ljust/scrolling are concerned."""
     headers = ["Company", "Title", "Applied", "Interview", "Status Changed", "Status", "Note"]
     if show_deleted:
         headers = headers + ["Deleted"]
     rows = []
     for r in records:
-        row = [r["company"], r["title"], r["applied"],
+        company_cell = r["company"] + (" ♥" if r.get("is_favorite", False) else "")
+        row = [company_cell, r["title"], r["applied"],
                interview.format_interview_display(r, display_tz=display_tz),
                r["status_changed"], r["status"], r.get("note") or "—"]
         if show_deleted:

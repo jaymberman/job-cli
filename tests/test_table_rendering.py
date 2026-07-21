@@ -6,7 +6,7 @@ import job
 
 def make_rec(company, title="Data Engineer", applied="2026-01-01", status="sent app",
              status_changed="2026-01-01", interview=None, interview_tz=None,
-             note=None, deleted=False, deleted_at=None, id_="11111111"):
+             note=None, deleted=False, deleted_at=None, is_favorite=False, id_="11111111"):
     return {
         "id": id_,
         "company": company,
@@ -19,6 +19,7 @@ def make_rec(company, title="Data Engineer", applied="2026-01-01", status="sent 
         "note": note,
         "deleted": deleted,
         "deleted_at": deleted_at,
+        "is_favorite": is_favorite,
     }
 
 
@@ -37,6 +38,23 @@ def test_build_table_lines_basic_structure():
 def test_build_table_lines_note_column_shows_value():
     lines, _, _ = job.display.build_table_lines([make_rec("Big Corp", note="Referred by a friend")])
     assert "Referred by a friend" in lines[2]
+
+
+def test_build_table_lines_favorite_appends_heart_to_company_cell():
+    lines, _, _ = job.display.build_table_lines([make_rec("Big Corp", is_favorite=True)])
+    assert "Big Corp ♥" in lines[2]
+
+
+def test_build_table_lines_non_favorite_has_no_heart():
+    lines, _, _ = job.display.build_table_lines([make_rec("Big Corp", is_favorite=False)])
+    assert "♥" not in lines[2]
+
+
+def test_build_table_lines_missing_is_favorite_field_defaults_to_no_heart():
+    r = make_rec("Big Corp")
+    del r["is_favorite"]
+    lines, _, _ = job.display.build_table_lines([r])
+    assert "♥" not in lines[2]
 
 
 def test_build_table_lines_note_column_is_last_before_deleted():

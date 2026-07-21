@@ -132,28 +132,35 @@ def test_remove_favorite_extra_argument_errors_and_does_not_create(run_cli):
     assert job.storage.load_data() == {}
 
 
-# ---- favorite status is never displayed -----------------------------------------
+# ---- favorite status shows as a plain ♥ marker in every table view --------------
 
-def test_favorite_not_shown_in_lookup(run_cli):
+def test_favorite_shown_in_lookup(run_cli):
     run_cli("Big Corp", "Data Engineer")
     run_cli("Big Corp", "--favorite")
     out = run_cli("Big Corp")
-    assert "favorite" not in out.lower()
+    assert "Big Corp ♥" in out
     assert "is_favorite" not in out.lower()
 
 
-def test_favorite_not_shown_as_table_column_in_list(run_cli):
+def test_favorite_not_shown_for_unfavorited_record_in_lookup(run_cli):
+    run_cli("Small Co", "Marketing Manager")
+    out = run_cli("Small Co")
+    assert "♥" not in out
+
+
+def test_favorite_shown_as_table_marker_in_list(run_cli):
     run_cli("Big Corp", "Data Engineer")
     run_cli("Big Corp", "--favorite")
     out = run_cli("list")
-    assert "favorite" not in out.lower()
+    assert "Big Corp ♥" in out
+    assert "Favorite" not in out.splitlines()[0]
 
 
-def test_favorite_not_shown_in_search_results(run_cli):
+def test_favorite_shown_in_search_results(run_cli):
     run_cli("Big Corp", "Data Engineer")
     run_cli("Big Corp", "--favorite")
     out = run_cli("search", "Big Corp")
-    assert "favorite" not in out.lower()
+    assert "Big Corp ♥" in out
 
 
 # ---- job favorites ----------------------------------------------------------------

@@ -141,8 +141,8 @@ def print_usage():
     print()
     print("Favorite a record with `job <company> --favorite`, unmark it with `job <company>")
     print("--remove-favorite`, and view all favorites with `job favorites`. Both apply immediately,")
-    print("no confirmation needed. Favorite status is never shown anywhere else (no column, no")
-    print("highlight) and is cleared automatically whenever a record is deleted.")
+    print("no confirmation needed. A favorited record shows a ♥ next to its company name in every")
+    print("table view, and favorite status is cleared automatically whenever a record is deleted.")
     print()
     print("Rename a company with `job <company> --rename <new_name>` — this also renames any soft-deleted")
     print("history sharing the old name, so `--all` and the declined-duplicate warning stay consistent under")
@@ -239,9 +239,9 @@ def print_favorites_help():
     print("Usage: job favorites")
     print()
     print("Shows every active record marked as a favorite (see `job <company> --favorite`),")
-    print("sorted by company name (A-Z). Favorite status is never shown anywhere else --")
-    print("this is the only place it's surfaced, and even here it's implicit: every row")
-    print("listed is a favorite, there's no separate Favorite column.")
+    print("sorted by company name (A-Z). Favorited records also show a ♥ next to their company")
+    print("name in every table view (list, search, lookup, interviews, today, and here) --")
+    print("there's no separate Favorite column.")
 
 
 def strip_trailing_tz(rest):
