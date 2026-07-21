@@ -22,7 +22,7 @@
 ![job-cli demo: creating and tracking applications, with color-coded interview rows (overdue/today/upcoming) and a soft-deleted record view](assets/demo.svg)
 
 <details>
-<summary>Plain-text transcript (no color)</summary>
+<summary>Plain-text transcript</summary>
 
 ```
 $ job "Big Corp" "Data Engineer"
